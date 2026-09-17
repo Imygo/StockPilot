@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS chart_data(
     high_price INT,                     -- stck_hgpr 고가
     low_price INT,                      -- stck_lwpr 저가
 
-    PRIMARY KEY (stock_code, updated_at)
+    PRIMARY KEY (stock_code, trade_date)
     );
 
 -- AI 의견을 담는 테이블
