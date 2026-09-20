@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users(
 
 -- 주식 정보를 담는 테이블
 CREATE TABLE IF NOT EXISTS stock(
-                                    stock_code VARCHAR(15) NOT NULL PRIMARY KEY,
+    stock_code VARCHAR(15) NOT NULL PRIMARY KEY,
     stock_name VARCHAR(100) NOT NULL,
     market VARCHAR(10),
     current_price INT,
@@ -26,8 +26,9 @@ CREATE TABLE IF NOT EXISTS stock(
     );
 
 -- 차트 데이터를 담는 테이블
-CREATE TABLE IF NOT EXISTS chart_data(
-                                         stock_code VARCHAR(15) NOT NULL,
+-- 웹소켓을 통해 실시간 데이터를 받으며, 분봉 캔들차트를 그리기 위해 사용합니다.
+CREATE TABLE IF NOT EXISTS minute_chart_data(
+    stock_code VARCHAR(15) NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     close_price INT,
     trade_date DATE,
@@ -40,9 +41,25 @@ CREATE TABLE IF NOT EXISTS chart_data(
     PRIMARY KEY (stock_code, trade_date)
     );
 
+-- 차트 데이터를 담는 테이블
+-- API를 이용하여 정해진 기간만큼의 데이터를 받으며, 일봉, 주봉, 월봉 캔들차트를 그리기 위해 사용합니다.
+CREATE TABLE IF NOT EXISTS daily_chart_data(
+    stock_code VARCHAR(15) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    close_price INT,
+    trade_date DATE,
+    volume BIGINT,                      -- acml_vol 거래량
+    change_rate DOUBLE,                 -- prdy_vrss 등락폭
+    open_price INT,                     -- stck_oprc 시가
+    high_price INT,                     -- stck_hgpr 고가
+    low_price INT,                      -- stck_lwpr 저가
+
+    PRIMARY KEY (stock_code, updated_at)
+);
+
 -- AI 의견을 담는 테이블
 CREATE TABLE IF NOT EXISTS ai_opinions(
-                                          stock_code VARCHAR(15) NOT NULL PRIMARY KEY,
+    stock_code VARCHAR(15) NOT NULL PRIMARY KEY,
     invest_opinion VARCHAR(100),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
@@ -64,4 +81,4 @@ CREATE TABLE IF NOT EXISTS user_opinions(
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (stock_code, user_id)
-    );
+);
