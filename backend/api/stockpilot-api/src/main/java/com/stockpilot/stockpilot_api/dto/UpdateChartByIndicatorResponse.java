@@ -1,8 +1,10 @@
 package com.stockpilot.stockpilot_api.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.time.LocalDate;
+import java.util.List;
 
 // 기술적지표는 사용자가 정한 기간만큼의 데이터를 들고오기 때문에 daily_chart_data db를 이용합니다.
 // 또한 데이터를 재구성하기 위해 필요한 값은 시가, 종가, 고가, 저가이며 사용자가 지정한 기간이 맞는지 확인하기 위해 tradeDate가 필요함.
@@ -14,20 +16,9 @@ import java.time.LocalDate;
 // 백엔드 계산 : 응답에 캔들 목록과 지표별 계산 결과를 함꼐 제공
 
 @Getter
-public class UpdateChartResponse {
-    private LocalDate tradeDate;
-    private Integer closePrice;
-    private Integer openPrice;
-    private Integer highPrice;
-    private Integer lowPrice;
-    private Long volume;
-
-    public UpdateChartResponse(LocalDate tradeDate, Integer closePrice, Integer openPrice, Integer highPrice, Integer lowPrice, Long volume) {
-        this.tradeDate = tradeDate;
-        this.closePrice = closePrice;
-        this.openPrice = openPrice;
-        this.highPrice = highPrice;
-        this.lowPrice = lowPrice;
-        this.volume = volume;
-    }
+@AllArgsConstructor
+public class UpdateChartByIndicatorResponse {
+    private String stockCode;
+    private List<UpdateDailyChartResponse> candles;
+    private List<IndicatorSeriesResponse> indicatorSeriesResponses;
 }
