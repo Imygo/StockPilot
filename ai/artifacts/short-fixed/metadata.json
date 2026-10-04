@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "stock_code": "005930",
+  "market": "J",
+  "timezone": "Asia/Seoul",
+  "split_policy": "fixed_dates",
+  "requested_dates": {
+    "train_start": "2026-07-01",
+    "train_end": "2026-09-01",
+    "val_end": "2026-09-14",
+    "test_end": "2026-09-30"
+  },
+  "lookback": 12,
+  "features": [
+    "return",
+    "body",
+    "range",
+    "log_volume",
+    "return_3",
+    "return_6",
+    "ma_distance_6",
+    "ma_distance_12",
+    "volatility_6",
+    "volume_relative_12",
+    "close_location",
+    "session_progress"
+  ],
+  "seed": 42,
+  "label": "1 if next close > current close else 0 (DOWN_OR_FLAT)",
+  "neutral_bps": 0.0,
+  "coverage": {
+    "train": {
+      "eligible_windows": 2139,
+      "excluded_neutral": 0,
+      "retained_windows": 2139,
+      "coverage": 1.0
+    },
+    "validation": {
+      "eligible_windows": 468,
+      "excluded_neutral": 0,
+      "retained_windows": 468,
+      "coverage": 1.0
+    },
+    "test": {
+      "eligible_windows": 520,
+      "excluded_neutral": 0,
+      "retained_windows": 520,
+      "coverage": 1.0
+    }
+  },
+  "positive_class_weight": 1.419683257918552,
+  "logit_correction": 0.3504337889282409,
+  "probability_calibrated": false,
+  "horizon_minutes": 5,
+  "decision_threshold": 0.4,
+  "threshold_selection": "validation macro F1, fixed 0.25..0.75 step 0.025",
+  "session_minute_starts": "09:05..15:19 KST; weekdays; complete bins only",
+  "source_sha256": "388276d36597b6428288d9a0e95d7642ceef7499261fb01f304749e5be64774f",
+  "versions": {
+    "numpy": "2.4.6",
+    "pandas": "2.3.3",
+    "torch": "2.14.1+cpu"
+  },
+  "split": {
+    "train": {
+      "start": "2026-07-01 09:10:00+09:00",
+      "end": "2026-09-01 15:20:00+09:00",
+      "windows": 2139
+    },
+    "validation": {
+      "start": "2026-09-02 09:10:00+09:00",
+      "end": "2026-09-14 15:20:00+09:00",
+      "windows": 468
+    },
+    "test": {
+      "start": "2026-09-15 09:10:00+09:00",
+      "end": "2026-09-30 15:20:00+09:00",
+      "windows": 520
+    }
+  }
+}
