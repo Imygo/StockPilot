@@ -13,9 +13,8 @@ public class DailyChartDataId implements Serializable {
 
     public DailyChartDataId() {}
 
-    public DailyChartDataId(String stock_code, LocalDate trade_date) {
+    public DailyChartDataId(String stock_code) {
         this.stock_code = stock_code;
-        this.trade_date = trade_date;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.stockpilot.stockpilot_api.domain;
 
+import com.stockpilot.stockpilot_api.service.AiOpinionService;
 import jakarta.persistence.*;
 import java.time.*;
 import org.hibernate.annotations.Generated;
