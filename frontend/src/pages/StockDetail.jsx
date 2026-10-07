@@ -70,7 +70,8 @@ function StockDetail() {
             
             <div style={{ ...cardStyle, minHeight: '400px' }}>
               <h3 style={{ margin: '0 0 20px 0', fontSize: '18px' }}>가격 차트</h3>
-              <StockChart stockName="삼성전자" />
+              <StockChart stockName="삼성전자" selectedIndicators={selectedIndicators} />
+              /* props로 selectedIndicators 배열을 전달합니다[cite: 30] */
             </div>
           </div>
 
