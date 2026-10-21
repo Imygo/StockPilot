@@ -14,14 +14,13 @@ import java.util.List;
 @RequestMapping("/api/stocks")
 @RequiredArgsConstructor
 public class StockController {
-
     private final StockService stockService;
-
-    // 주식 리스트를 구성하는 데이터를 받아오도록 StockService에게 명령
     // GET /api/stocks
     // GET /api/stocks?keyword=삼성
     // GET /api/stocks?market=KOSPI
-    // GET /api/stocks?keyword=삼성&market=KOSPI&sort=VOLUME_DESC
+    // GET /api/stocks?keyword=삼성&market=KOSPI&sort=VOLUME_DESC 모든걸 한번에 합쳐야 할 필요가 있는가
+
+    // 주식 리스트를 구성하는 데이터를 받아오도록 StockService에게 명령
     @GetMapping
     public List<StockSpecResponse> getStocks(
             @Valid @ModelAttribute StockListRequest request

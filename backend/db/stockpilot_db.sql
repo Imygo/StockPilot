@@ -1,6 +1,6 @@
 -- SQL파일을 수정한 후에는 이미 생성된 DB테이블을 변경해야 한다.
 
---1. 스키마 생성
+-- 1. 스키마 생성
 CREATE SCHEMA IF NOT EXISTS stockpilot_db
     DEFAULT CHARACTER SET utf8mb4
     COLLATE utf8mb4_0900_ai_ci;
