@@ -4,6 +4,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
 import StockChart from '../components/StockChart';
 
+// 날짜 포맷팅 헬퍼 함수 (YYYY-MM-DD)
+const getTodayStr = () => {
+  const d = new Date();
+  // 한국 시간대(KST) 등 로컬 타임존 편차를 고려하여 문자열을 추출합니다.
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+};
+
+const getOneMonthAgoStr = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+};
 function koreanDate(offset = 0) {
   const today = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -27,6 +41,10 @@ function StockDetail() {
 function StockDetailContent({ code }) {
   const navigate = useNavigate();
 
+// 기술적 지표 체크박스 상태 관리 (우리가 작성한 UI 로직)
+  const [selectedIndicators, setSelectedIndicators] = useState(['MA20', 'VOLUME']);
+
+  // API 통신용 상태 및 기존 날짜 상태 (main 브랜치의 백엔드 연동 로직)
   const [stock, setStock] = useState(null);
   const [community, setCommunity] = useState(null);
   const [aiOpinion, setAiOpinion] = useState(null);
@@ -190,14 +208,41 @@ function StockDetailContent({ code }) {
             </div>
             
             <div style={{ ...cardStyle, minHeight: '400px' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '18px' }}>가격 차트</h3>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <label>시작일 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
-                <label>종료일 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
-              </div>
-              {chartLoading ? <p>차트를 불러오는 중입니다.</p>
-                : chartError ? <p role="alert">{chartError}</p>
-                : <StockChart stockName={stock.stockName} candles={candles} />}
+<div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+  <h3 style={{ margin: 0, fontSize: '18px', marginRight: 'auto' }}>가격 차트</h3>
+  <input 
+    type="date" 
+    value={startDate} 
+    onChange={(e) => setStartDate(e.target.value)} 
+    style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+  />
+  <span>~</span>
+  <input 
+    type="date" 
+    value={endDate} 
+    onChange={(e) => setEndDate(e.target.value)} 
+    style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+  />
+</div>
+
+{/* 백엔드 로딩 상태와 에러 처리를 UI에 반영합니다 */}
+{chartLoading ? (
+  <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    차트 데이터를 불러오는 중입니다...
+  </div>
+) : chartError ? (
+  <div style={{ height: '400px', padding: '20px', color: '#E22926' }} role="alert">
+    {chartError}
+  </div>
+) : (
+  <StockChart 
+    stockCode={code} 
+    startDate={startDate} 
+    endDate={endDate} 
+    selectedIndicators={selectedIndicators}
+    candles={candles} 
+  />
+)}
             </div>
           </div>
 
