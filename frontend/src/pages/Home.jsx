@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { stockAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUpDown } from 'lucide-react';
 
@@ -8,38 +9,58 @@ function Home() {
   const [marketFilter, setMarketFilter] = useState('ALL');
   const [sortType, setSortType] = useState('VOLUME_DESC');
 
-  // 코스닥 종목이 추가된 확장된 임시 데이터
-  const mockStocks = [
-    { code: '005930', name: '삼성전자', market: 'KOSPI', price: 72500, changeAmount: 1500, changeRate: 2.11, volume: 15234567, marketCap: 432.0 },
-    { code: '000660', name: 'SK하이닉스', market: 'KOSPI', price: 145000, changeAmount: -3000, changeRate: -2.03, volume: 5678901, marketCap: 105.6 },
-    { code: '035720', name: '카카오', market: 'KOSPI', price: 42500, changeAmount: -1200, changeRate: -2.74, volume: 3456789, marketCap: 18.5 },
-    { code: '086520', name: '에코프로', market: 'KOSDAQ', price: 72300, changeAmount: -2100, changeRate: -2.82, volume: 2345678, marketCap: 11.3 },
-    { code: '091990', name: '셀트리온헬스케어', market: 'KOSDAQ', price: 65000, changeAmount: 500, changeRate: 0.78, volume: 1234567, marketCap: 10.1 }
-  ];
+  const [displayStocks, setDisplayStocks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // 필터 및 정렬 로직 (FR-05, FR-06)[cite: 29]
-  // useMemo를 사용하여 marketFilter나 sortType이 바뀔 때만 재계산하도록 최적화합니다.
-  const displayStocks = useMemo(() => {
-    // 1. 시장 필터링[cite: 29]
-    let filtered = mockStocks.filter(stock => 
-      marketFilter === 'ALL' ? true : stock.market === marketFilter
-    );
+  useEffect(() => {
+    let ignore = false;
 
-    // 2. 검색어 필터링 (간단한 검색 로직 추가)
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(stock => 
-        stock.name.includes(searchTerm) || stock.code.includes(searchTerm)
-      );
-    }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError('');
+      try {
+        if (searchTerm !== '' && searchTerm.trim() === '') {
+          throw new Error('검색어는 공백일 수 없습니다.');
+        }
 
-    // 3. 선택된 기준에 따른 정렬[cite: 29]
-    return filtered.sort((a, b) => {
-      if (sortType === 'VOLUME_DESC') return b.volume - a.volume;
-      if (sortType === 'PRICE_DESC') return b.price - a.price;
-      if (sortType === 'MARKET_CAP_DESC') return b.marketCap - a.marketCap;
-      return 0;
-    });
-  }, [marketFilter, sortType, searchTerm]);
+        const rows = await stockAPI.getStocks({
+          keyword: searchTerm === '' ? undefined : searchTerm.trim(),
+          market: marketFilter,
+          sort: sortType,
+        });
+
+        if (ignore) return;
+
+        setDisplayStocks(rows.map(stock => ({
+          code: stock.stockCode,
+          name: stock.stockName,
+          market: stock.market,
+          price: stock.currentPrice,
+          changeAmount: stock.changeAmount,
+          changeRate: stock.changeRate,
+          volume: stock.volume,
+          marketCap: stock.marketCap,
+        })));
+      } catch (err) {
+        if (ignore) return;
+
+        setDisplayStocks([]);
+        setError(
+            err.response?.data?.message
+            ?? err.message
+            ?? '종목 목록을 불러오지 못했습니다.'
+        );
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [searchTerm, marketFilter, sortType]);
 
   return (
     <div style={{ backgroundColor: '#F7F9FA', minHeight: '100vh', padding: '40px 20px', fontFamily: 'sans-serif' }}>
@@ -99,7 +120,11 @@ function Home() {
           </div>
 
           {/* 필터링 및 정렬된 리스트 렌더링 */}
-          {displayStocks.length > 0 ? (
+          {loading ? (
+              <p>종목 목록을 불러오는 중입니다.</p>
+              ) : error ? (
+                  <p role="alert">{error}</p>
+              ) : displayStocks.length > 0 ? (
             displayStocks.map(stock => (
               <div 
                 key={stock.code} 
@@ -113,14 +138,23 @@ function Home() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#666' }}>
                     <span style={{ backgroundColor: '#F0F0F0', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>{stock.market}</span>
-                    <span>거래량 {stock.volume.toLocaleString()}</span>
-                    <span>시가총액 {stock.marketCap}조</span>
+                    <span>거래량 {stock.volume?.toLocaleString() ?? '-'}</span>
+                    <span>
+                        시가총액 {
+                          stock.marketCap == null
+                          ? '-'
+                          : `${(stock.marketCap / 10000).toLocaleString(
+                              'ko-KR',
+                              { maximumFractionDigits: 2 }
+                            )}조`
+                          }
+                    </span>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>{stock.price.toLocaleString()}원</div>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: stock.changeAmount > 0 ? '#E22926' : '#2679ED' }}>
-                    {stock.changeAmount > 0 ? '+' : ''}{stock.changeAmount.toLocaleString()}원 ({stock.changeRate > 0 ? '+' : ''}{stock.changeRate}%)
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>{stock.price?.toLocaleString() ?? '-'}원</div>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: stock.changeAmount > 0 ? '#E22926' : stock.changeAmount < 0 ? '#2679ED' : '#666' }}>
+                    {stock.changeAmount > 0 ? '+' : ''}{stock.changeAmount?.toLocaleString() ?? '-'}원 ({stock.changeRate > 0 ? '+' : ''}{stock.changeRate ?? '-'}%)
                   </div>
                 </div>
               </div>
