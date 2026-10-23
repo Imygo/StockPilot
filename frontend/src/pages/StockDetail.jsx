@@ -1,14 +1,32 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// Minus 아이콘 제거됨
 import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
 import StockChart from '../components/StockChart';
+
+// 날짜 포맷팅 헬퍼 함수 (YYYY-MM-DD)
+const getTodayStr = () => {
+  const d = new Date();
+  // 한국 시간대(KST) 등 로컬 타임존 편차를 고려하여 문자열을 추출합니다.
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+};
+
+const getOneMonthAgoStr = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+};
 
 function StockDetail() {
   const { code } = useParams();
   const navigate = useNavigate();
 
-  // 기술적 지표 체크박스 상태 관리[cite: 30, 32]
+  // 동적 날짜 디폴트 값 적용 (오늘 기준 최근 1개월)
+  const [startDate, setStartDate] = useState(getOneMonthAgoStr());
+  const [endDate, setEndDate] = useState(getTodayStr());
+
+  // 기술적 지표 체크박스 상태 관리
   const [selectedIndicators, setSelectedIndicators] = useState(['MA20', 'VOLUME']); 
 
   const handleIndicatorChange = (indicator) => {
@@ -70,8 +88,29 @@ function StockDetail() {
             </div>
             
             <div style={{ ...cardStyle, minHeight: '400px' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '18px' }}>가격 차트</h3>
-              <StockChart stockName="삼성전자" selectedIndicators={selectedIndicators} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', marginRight: 'auto' }}>가격 차트</h3>
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setStartDate(e.target.value)} 
+                  style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+                />
+                <span>~</span>
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setEndDate(e.target.value)} 
+                  style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+                />
+              </div>
+              
+              <StockChart 
+                stockCode={code} 
+                startDate={startDate} 
+                endDate={endDate} 
+                selectedIndicators={selectedIndicators} 
+              />
             </div>
           </div>
 

@@ -1,91 +1,121 @@
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-  } from 'chart.js';
-  import { Line } from 'react-chartjs-2';
-  
-  // Chart.js 모듈 등록 (Filler는 볼린저밴드 등 영역 색칠에 사용)
-  ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
-  
-  function StockChart({ stockName, selectedIndicators = [] }) {
-    // 임시 날짜 라벨
-    const labels = ['10-01', '10-02', '10-03', '10-04', '10-05', '10-06', '10-07'];
-  
-    // 1. 기본 종가 데이터 (항상 표시)
-    const baseDataset = {
-      label: `${stockName} 종가`,
-      data: [68000, 68500, 69000, 68200, 69500, 71000, 72500],
-      borderColor: '#111',
-      backgroundColor: '#111',
-      borderWidth: 2,
-      tension: 0.1,
+import { useEffect, useState } from 'react';
+import ReactApexChart from 'react-apexcharts';
+// import { chartAPI } from '../services/api'; // 백엔드 연동 시 주석 해제
+
+function StockChart({ stockCode, startDate, endDate, selectedIndicators = [] }) {
+  const [series, setSeries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. 임시 데이터 생성 (백엔드 API 연동 전 UI 테스트용)
+    const fetchChartData = () => {
+      setLoading(true);
+      
+      // 캔들차트 데이터 (시가, 고가, 저가, 종가)
+      const candleData = [
+        { x: new Date('2026-10-01').getTime(), y: [68000, 69000, 67500, 68500] },
+        { x: new Date('2026-10-02').getTime(), y: [68500, 69500, 68000, 69000] },
+        { x: new Date('2026-10-03').getTime(), y: [69000, 70000, 68500, 68200] },
+        { x: new Date('2026-10-04').getTime(), y: [68200, 69500, 68000, 69500] },
+        { x: new Date('2026-10-05').getTime(), y: [69500, 71500, 69000, 71000] },
+        { x: new Date('2026-10-06').getTime(), y: [71000, 73000, 70500, 72500] },
+      ];
+
+      // 기본 시리즈(일봉) 세팅 -> ApexCharts에서는 혼합 차트를 위해 type을 명시합니다.
+      const newSeries = [
+        {
+          name: '일봉',
+          type: 'candlestick',
+          data: candleData
+        }
+      ];
+
+      // 2. 보조지표별 임시 데이터 (선 차트용)
+      const indicatorDataMap = {
+        MA20: [
+          { x: new Date('2026-10-01').getTime(), y: 67000 },
+          { x: new Date('2026-10-02').getTime(), y: 67500 },
+          { x: new Date('2026-10-03').getTime(), y: 68000 },
+          { x: new Date('2026-10-04').getTime(), y: 68500 },
+          { x: new Date('2026-10-05').getTime(), y: 69000 },
+          { x: new Date('2026-10-06').getTime(), y: 69500 },
+        ],
+        EMA20: [
+          { x: new Date('2026-10-01').getTime(), y: 67500 },
+          { x: new Date('2026-10-02').getTime(), y: 68200 },
+          { x: new Date('2026-10-03').getTime(), y: 68800 },
+          { x: new Date('2026-10-04').getTime(), y: 68000 },
+          { x: new Date('2026-10-05').getTime(), y: 69200 },
+          { x: new Date('2026-10-06').getTime(), y: 70500 },
+        ]
+      };
+
+      // 3. 선택된 지표(`selectedIndicators`)가 배열에 있으면 선 차트(line)로 추가
+      selectedIndicators.forEach(ind => {
+        if (indicatorDataMap[ind]) {
+          newSeries.push({
+            name: ind,
+            type: 'line',
+            data: indicatorDataMap[ind]
+          });
+        }
+      });
+
+      /* 
+       * 실제 API 연동 시 위 로직은 다음과 같이 교체됩니다:
+       * const candleRes = await chartAPI.getDailyChart(stockCode, startDate, endDate);
+       * const indicatorRes = await chartAPI.getIndicatorChart(stockCode, startDate, endDate, selectedIndicators);
+       * -> 받은 데이터를 newSeries 배열 포맷에 맞게 map()으로 가공
+       */
+
+      setSeries(newSeries);
+      setLoading(false);
     };
-  
-    // 2. 기술적 지표별 임시 데이터셋 정의
-    const indicatorDatasets = {
-      MA20: {
-        label: '이동평균선 (20일)',
-        data: [67000, 67500, 68000, 68500, 69000, 69500, 70000],
-        borderColor: '#E22926',
-        borderWidth: 1.5,
-        borderDash: [5, 5], // 점선 표현
-        tension: 0.1,
-        pointRadius: 0,
-      },
-      EMA20: {
-        label: '지수평균선 (20일)',
-        data: [67500, 68200, 68800, 68000, 69200, 70500, 71800],
-        borderColor: '#F5A623',
-        borderWidth: 1.5,
-        tension: 0.1,
-        pointRadius: 0,
-      },
-      BB: {
-        label: '볼린저밴드 (상한)',
-        data: [70000, 70500, 71000, 71500, 72000, 73000, 74000],
-        borderColor: 'rgba(38, 121, 237, 0.5)',
-        backgroundColor: 'rgba(38, 121, 237, 0.1)',
-        borderWidth: 1,
-        fill: true, // 선 아래 영역 색칠
-        tension: 0.1,
-        pointRadius: 0,
+
+    fetchChartData();
+  }, [stockCode, startDate, endDate, selectedIndicators]);
+
+  // 차트 옵션 설정
+  const options = {
+    chart: {
+      type: 'line', // 혼합 차트를 그릴 때는 최상위 type을 'line'으로 둡니다.
+      height: 400,
+      toolbar: { show: false }
+    },
+    stroke: {
+      // 캔들차트 테두리는 얇게(1), 추가되는 꺾은선(보조지표)들은 두껍게(2)
+      width: [1, 2, 2, 2, 2],
+      curve: 'smooth'
+    },
+    xaxis: {
+      type: 'datetime',
+    },
+    yaxis: {
+      tooltip: { enabled: true }
+    },
+    plotOptions: {
+      candlestick: {
+        colors: {
+          upward: '#E22926', // 한국 주식 시장 상승(빨강)
+          downward: '#2679ED' // 한국 주식 시장 하락(파랑)
+        },
+        wick: { useFillColor: true }
       }
-    };
-  
-    // 3. 선택된 지표만 필터링하여 배열에 추가[cite: 30]
-    const datasets = [baseDataset];
-    selectedIndicators.forEach(ind => {
-      if (indicatorDatasets[ind]) {
-        datasets.push(indicatorDatasets[ind]);
-      }
-    });
-  
-    const data = { labels, datasets };
-  
-    const options = {
-      responsive: true,
-      maintainAspectRatio: false, // 부모 컨테이너(div) 크기에 맞춤
-      plugins: {
-        legend: { position: 'top' },
-      },
-      scales: {
-        y: { beginAtZero: false } // 주가 차트이므로 0부터 시작하지 않음
-      }
-    };
-  
-    return (
-        // 부모 컨테이너에 명시적인 높이(height)와 상대 위치(relative)를 지정합니다.
-        <div style={{ position: 'relative', width: '100%', height: '400px' }}>
-          <Line options={options} data={data} />
-        </div>
-      );
     }
-    
-    export default StockChart;
+  };
+
+  if (loading) return <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>차트를 불러오는 중...</div>;
+
+  return (
+    <div style={{ width: '100%', height: '400px' }}>
+      <ReactApexChart 
+        options={options} 
+        series={series} 
+        type="line" // 혼합 차트 필수 설정
+        height={400} 
+      />
+    </div>
+  );
+}
+
+export default StockChart;
