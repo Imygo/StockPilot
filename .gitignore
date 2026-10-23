@@ -1,3 +1,23 @@
 # IntelliJ IDEA
 .idea/
 *.iml
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Frontend dependencies and build output
+node_modules/
+/frontend/dist/
+
+# Generated collector data
+/backend/data_collector/data/

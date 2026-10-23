@@ -25,8 +25,8 @@ public class OpinionService {
     private final UserOpinionsRepository userOpinionsRepository;
     private final CommunityOpinionsRepository communityOpinionsRepository;
 
-    // 1. 사용자가 특정 주식에 의견을 표했는지 확인하는 로직.
-    // 이미 등록한 의견이 있다면, 선택한 의견을 표시함 ( 이건 프론트엔드 )
+    // 사용자가 특정 주식에 의견을 표했는지 확인하는 함수
+    // 이미 등록한 의견이 있다면, 선택한 의견을 표시함 ( 프론트엔드 )
     // 무슨 의견을 냈는지에 대한 데이터를 전송하긴 해야함
     // 그렇지 않다면 의견을 선택하도록 버튼을 제시
     @Transactional(readOnly = true)
@@ -51,6 +51,7 @@ public class OpinionService {
                 .orElse(null);
     }
 
+    // 사용자의 의견을 저장하도록 하는 함수
     @Transactional
     public void saveOpinion(
             String userId,
@@ -128,8 +129,20 @@ public class OpinionService {
         }
     }
 
+    // 의견을 POST한 후, 내가 제시한 의견을 보이는 것
+    // 위 getCommunityView함수를 이용하여, 내가 어떤 의견을 제시했는지와, 집계결과를 보임
+    @Transactional
+    public CommunityOpinionViewResponse saveAndGetView(
+            String userId,
+            String stockCode,
+            UserOpinionRequest request
+    ) {
+        saveOpinion(userId, stockCode, request);
+        return getCommunityView(stockCode, userId);
+    }
 
-    // 2. 이미 등록된 의견들(커뮤니티 의견)을 가져오는 로직.
+    // 이미 등록된 의견들(커뮤니티 의견)을 가져오는 로직.
+    // DB테이블의 집계행 값을 가져오는 것
     @Transactional(readOnly = true)
     public CommunityOpinionsResponse getCommunityOpinion(String stockCode){
         CommunityOpinions counts =
@@ -145,6 +158,7 @@ public class OpinionService {
         );
     }
 
+    // 커뮤니티 의견을 받았을 때, 내 의견이 어땠는지(투표했는지)를 확인하는 것
     @Transactional(readOnly = true)
     public CommunityOpinionViewResponse getCommunityView(
             String stockCode,
@@ -165,15 +179,5 @@ public class OpinionService {
                 myOpinion != null,
                 myOpinion
         );
-    }
-
-    @Transactional
-    public CommunityOpinionViewResponse saveAndGetView(
-            String userId,
-            String stockCode,
-            UserOpinionRequest request
-    ) {
-        saveOpinion(userId, stockCode, request);
-        return getCommunityView(stockCode, userId);
     }
 }

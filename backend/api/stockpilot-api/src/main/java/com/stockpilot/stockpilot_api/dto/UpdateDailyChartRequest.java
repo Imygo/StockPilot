@@ -14,8 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 public class UpdateDailyChartRequest {
     // 요청할 때 필요한 값은 다음과 같다.
-    // stockCode는 URL경로에서 받으므로 DTO에 넣을 필요 없음e
-    private String stockCode;
+    // stockCode는 URL경로에서 받으므로 DTO에 넣을 필요 없음
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate startDate;
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)

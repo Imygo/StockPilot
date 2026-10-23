@@ -80,8 +80,10 @@ public class ChartService {
         if(candleStart == null){
             // candleStart가 null일때의 처리가 없음, 생략 가능하므로 기본조회 시각을 설정한다.
             // 사용자가 분봉차트를 조회하는 시각을 기본 조회 시각으로 설정
-            // 조회하는 시각의 n분 전 데이터를 얻어와서 차트를 구성한 뒤, 실시간으로 차트를 재구성하는 것도 고려
-            candleStart = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+            // 최근 60분을 보여주는 코드로 변경
+            candleStart = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+                    .minusMinutes(60)
+                    .truncatedTo(java.time.temporal.ChronoUnit.MINUTES);
         }
 
         if(!stockRepository.existsById(stockCode)){
@@ -106,11 +108,11 @@ public class ChartService {
     }
 
     // 지표연산을 위해 데이터를 얻어오는 함수
-
     public List<UpdateDailyChartResponse> getChartData(
             String stockCode,
-            UpdateDailyChartRequest request
+            UpdateChartByIndicatorRequest request
     ){
+        // 기간 검증
         LocalDate start = request.getStartDate();
         LocalDate end = request.getEndDate();
 
@@ -120,9 +122,19 @@ public class ChartService {
         if(start.isAfter(end)){
             throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
         }
+
+        // 종목 검증
         if(!stockRepository.existsById(stockCode)){
             throw new NoSuchElementException("존재하지 않는 종목입니다.");
         }
+
+        // 선택 지표 확인
+
+        // 계산에 필요한 과거 일봉까지 조회
+
+        // 지표 계산
+
+        // 표시 기간의 캔들과 지표 결과를 묶어서 반환
 
         return dailyChartDataRepository.findRange(stockCode, start, end)
                 .stream()

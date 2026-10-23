@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final UserService userService;
 
-    // 사용자등록을 위한 api경로를 설정해야 함
-    // /api/user-login이 먼저 있고 기존의 아이디가 없으면 /api/user-login/user-register로 넘어가야 할지도 모름
-    // POST /api/users
-    // GET /api/users/exists?userId=user001
+    // 사용자등록을 위한 api경로 설정
+    //  POST /api/users
+    //  GET /api/users/exists?userId=user001
+    //    @SessionAttribute : 서버 세션에 저장한 값을 현재 요청에서 꺼내는 역할
+    //    session.setAttribute(“userId”, request.getUserId());에서 유저아이디를 등록 및 저장
+    //    OpinionController에서 사용함
+    //    -> required = false이므로 세션에 값이 없다면 userId = null
     @PostMapping
     public ResponseEntity<Void> registerUser(
             @Valid @RequestBody UserRegisterRequest request,

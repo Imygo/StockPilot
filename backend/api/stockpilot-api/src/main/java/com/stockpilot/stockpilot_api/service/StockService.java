@@ -79,7 +79,6 @@ public class StockService {
     // 시장 조건을 적용. ALL은 시장 제한 없이 조회
     // 정렬 조건을 적용한다.
     // 조회한 Stock들을 기존 toResponse()로 변환
-
     @Transactional(readOnly = true)
     public List<StockSpecResponse> getStocks(StockListRequest request) {
         String keyword = request.getKeyword() == null
@@ -128,6 +127,5 @@ public class StockService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
-
     }
 }
