@@ -1,0 +1,6 @@
+{
+  "artifacts/top200-binary-v1/xgboost/baseline.json": "d4f839872674c50afac2a2a4b57b81fda8229916b78f85abc076215b1cb0133a",
+  "artifacts/top200-binary-v1/xgboost/metadata.json": "6f3cee853e985efcec5132650826b37495e3826b0380c980cdd01e8a9314b808",
+  "artifacts/top200-binary-v1/xgboost/model.ubj": "405bed9a8bc04c65527af38a250aea1912e69478e6b6627daa88b850d33a7d35",
+  "artifacts/top200-binary-v1/xgboost/universe.json": "fdf6b1c888b6062a5fe0f542000152e452f6d03d798688b2d4c5af028b3f69dd"
+}

@@ -2,22 +2,17 @@ import axios from 'axios';
 
 // 1. 기본 Axios 인스턴스 생성
 const apiClient = axios.create({
-  // 환경변수가 없으면 기본 로컬 주소 사용
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080', 
+  baseURL: '/',
   timeout: 5000,
-  // 사용자 식별을 위한 세션 쿠키를 요청마다 포함하도록 설정[cite: 54]
-  withCredentials: true, 
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
 });
 
 // 2. User API (UserController)
 export const userAPI = {
   // 사용자 이름 등록
-  registerUser: async (userName) => {
-    const response = await apiClient.post('/api/users', { name: userName });
-    return response.data;
+  registerUser: async (userId) => {
+    const response = await apiClient.post('/api/users', { userId });
+    return response.status;
   },
   // 사용자 존재 여부 확인
   checkUserExists: async (userId) => {

@@ -1,9 +1,19 @@
+# Local credentials / runtime files
 .env
 .env.*
 !.env.example
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
 *.log
-data/
-exports/
+.pytest_cache/
+# Only the frozen universe and selected model belong in this package
+/data/*
+!/data/top200-20261012.json
+/artifacts/*
+!/artifacts/top200-binary-v1/
+/artifacts/top200-binary-v1/*
+!/artifacts/top200-binary-v1/xgboost/
+*.csv
+*.zip
