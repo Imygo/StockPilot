@@ -61,6 +61,7 @@ def normalize(page, code, cutoff, since):
 
 
 class KIS:
+    tr_id = TR
     def __init__(self, delay=.6):
         self.key = os.getenv('KIS_APP_KEY',''); self.secret = os.getenv('KIS_APP_SECRET','')
         if not self.key or not self.secret: raise ValueError('Set KIS_APP_KEY and KIS_APP_SECRET')
@@ -73,7 +74,7 @@ class KIS:
             self.last = time.monotonic()
             headers={'Content-Type':'application/json; charset=utf-8'}
             if params is not None:
-                headers.update(authorization='Bearer '+self.token,appkey=self.key,appsecret=self.secret,tr_id=TR,custtype='P')
+                headers.update(authorization='Bearer '+self.token,appkey=self.key,appsecret=self.secret,tr_id=self.tr_id,custtype='P')
             req=Request(BASE+path+('?' + urlencode(params) if params else ''),
                         data=json.dumps(payload).encode() if payload else None,headers=headers)
             try:

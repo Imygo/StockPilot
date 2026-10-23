@@ -78,3 +78,7 @@ FROM ai_prediction_history ORDER BY created_at DESC LIMIT 200;
 테스트는 외부 API 및 실제 DB 없이 실행합니다. 실제 계정 접속과 장중 데이터 수신은 팀원 환경에서 별도로 확인하세요. 모델 파일 무결성은 `MODEL_SHA256.json`에 기록했습니다.
 
 상세 운영 안내: [실시간 수집](live_collector/REALTIME_RUN.md), [예측기](live_collector/LIVE_PREDICTION.md).
+
+## 과거 일봉 DB 수집
+
+200종목의 최근 1년 일봉을 저장하는 기능은 [일봉 수집 안내](live_collector/DAILY_COLLECTION.md)를 참고하세요. `daily_collector.py`는 기본적으로 어제까지의 완성된 일봉을 조회하며 `--write`로 DB에 저장합니다.
