@@ -1,119 +1,234 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import ReactApexChart from 'react-apexcharts';
-// import { chartAPI } from '../services/api'; // 백엔드 연동 시 주석 해제
 
-function StockChart({ stockCode, startDate, endDate, selectedIndicators = [] }) {
-  const [series, setSeries] = useState([]);
-  const [loading, setLoading] = useState(true);
+// --- 기술적 지표 수학 계산 헬퍼 함수들 ---
+function calcSMA(data, period) {
+  return data.map((item, idx) => {
+    if (idx < period - 1) return { x: item.x, y: null };
+    const slice = data.slice(idx - period + 1, idx + 1);
+    const sum = slice.reduce((acc, cur) => acc + cur.close, 0);
+    return { x: item.x, y: Math.round(sum / period) };
+  });
+}
 
-  useEffect(() => {
-    // 1. 임시 데이터 생성 (백엔드 API 연동 전 UI 테스트용)
-    const fetchChartData = () => {
-      setLoading(true);
-      
-      // 캔들차트 데이터 (시가, 고가, 저가, 종가)
-      const candleData = [
-        { x: new Date('2026-10-01').getTime(), y: [68000, 69000, 67500, 68500] },
-        { x: new Date('2026-10-02').getTime(), y: [68500, 69500, 68000, 69000] },
-        { x: new Date('2026-10-03').getTime(), y: [69000, 70000, 68500, 68200] },
-        { x: new Date('2026-10-04').getTime(), y: [68200, 69500, 68000, 69500] },
-        { x: new Date('2026-10-05').getTime(), y: [69500, 71500, 69000, 71000] },
-        { x: new Date('2026-10-06').getTime(), y: [71000, 73000, 70500, 72500] },
-      ];
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  let ema = null;
+  return data.map((item, idx) => {
+    if (idx === 0) {
+      ema = item.close;
+      return { x: item.x, y: Math.round(ema) };
+    }
+    ema = item.close * k + ema * (1 - k);
+    return { x: item.x, y: idx < period - 1 ? null : Math.round(ema) };
+  });
+}
 
-      // 기본 시리즈(일봉) 세팅 -> ApexCharts에서는 혼합 차트를 위해 type을 명시합니다.
-      const newSeries = [
-        {
-          name: '일봉',
-          type: 'candlestick',
-          data: candleData
-        }
-      ];
+function calcBollingerBands(data, period = 20, multiplier = 2) {
+  const upper = [];
+  const lower = [];
+  data.forEach((item, idx) => {
+    if (idx < period - 1) {
+      upper.push({ x: item.x, y: null });
+      lower.push({ x: item.x, y: null });
+      return;
+    }
+    const slice = data.slice(idx - period + 1, idx + 1);
+    const mean = slice.reduce((acc, cur) => acc + cur.close, 0) / period;
+    const variance = slice.reduce((acc, cur) => acc + Math.pow(cur.close - mean, 2), 0) / period;
+    const stdDev = Math.sqrt(variance);
+    upper.push({ x: item.x, y: Math.round(mean + multiplier * stdDev) });
+    lower.push({ x: item.x, y: Math.round(mean - multiplier * stdDev) });
+  });
+  return { upper, lower };
+}
 
-      // 2. 보조지표별 임시 데이터 (선 차트용)
-      const indicatorDataMap = {
-        MA20: [
-          { x: new Date('2026-10-01').getTime(), y: 67000 },
-          { x: new Date('2026-10-02').getTime(), y: 67500 },
-          { x: new Date('2026-10-03').getTime(), y: 68000 },
-          { x: new Date('2026-10-04').getTime(), y: 68500 },
-          { x: new Date('2026-10-05').getTime(), y: 69000 },
-          { x: new Date('2026-10-06').getTime(), y: 69500 },
-        ],
-        EMA20: [
-          { x: new Date('2026-10-01').getTime(), y: 67500 },
-          { x: new Date('2026-10-02').getTime(), y: 68200 },
-          { x: new Date('2026-10-03').getTime(), y: 68800 },
-          { x: new Date('2026-10-04').getTime(), y: 68000 },
-          { x: new Date('2026-10-05').getTime(), y: 69200 },
-          { x: new Date('2026-10-06').getTime(), y: 70500 },
-        ]
+function calcRSI(data, period = 14) {
+  const result = [];
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = 0; i < data.length; i++) {
+    if (i === 0) {
+      result.push({ x: data[i].x, y: null });
+      continue;
+    }
+    const diff = data[i].close - data[i - 1].close;
+    const gain = diff > 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+
+    if (i <= period) {
+      gains += gain;
+      losses += loss;
+      if (i < period) {
+        result.push({ x: data[i].x, y: null });
+      } else {
+        const avgGain = gains / period;
+        const avgLoss = losses / period;
+        const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        result.push({ x: data[i].x, y: Number((100 - 100 / (1 + rs)).toFixed(2)) });
+      }
+    } else {
+      gains = (gains * (period - 1) + gain) / period;
+      losses = (losses * (period - 1) + loss) / period;
+      const rs = losses === 0 ? 100 : gains / losses;
+      result.push({ x: data[i].x, y: Number((100 - 100 / (1 + rs)).toFixed(2)) });
+    }
+  }
+  return result;
+}
+
+function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = [] }) {
+  // 백엔드 응답(UpdateDailyChartResponse 또는 UpdateMinuteChartResponse) 정규화
+  const normalizedData = useMemo(() => {
+    return candles.map((item) => {
+      const timeStr = item.tradeDate || item.candleStart;
+      return {
+        x: new Date(timeStr).getTime(),
+        open: item.openPrice,
+        high: item.highPrice,
+        low: item.lowPrice,
+        close: item.closePrice,
+        volume: item.volume ?? null,
       };
+    });
+  }, [candles]);
 
-      // 3. 선택된 지표(`selectedIndicators`)가 배열에 있으면 선 차트(line)로 추가
-      selectedIndicators.forEach(ind => {
-        if (indicatorDataMap[ind]) {
-          newSeries.push({
-            name: ind,
-            type: 'line',
-            data: indicatorDataMap[ind]
-          });
-        }
-      });
+  // 메인 캔들차트 + 오버레이 지표 시리즈 생성
+  const mainSeries = useMemo(() => {
+    const series = [
+      {
+        name: chartMode === 'DAILY' ? '일봉' : '분봉',
+        type: 'candlestick',
+        data: normalizedData.map((d) => ({
+          x: d.x,
+          y: [d.open, d.high, d.low, d.close],
+        })),
+      },
+    ];
 
-      /* 
-       * 실제 API 연동 시 위 로직은 다음과 같이 교체됩니다:
-       * const candleRes = await chartAPI.getDailyChart(stockCode, startDate, endDate);
-       * const indicatorRes = await chartAPI.getIndicatorChart(stockCode, startDate, endDate, selectedIndicators);
-       * -> 받은 데이터를 newSeries 배열 포맷에 맞게 map()으로 가공
-       */
+    if (chartMode === 'DAILY') {
+      if (selectedIndicators.includes('SMA20')) {
+        series.push({ name: 'SMA 20', type: 'line', data: calcSMA(normalizedData, 20) });
+      }
+      if (selectedIndicators.includes('SMA60')) {
+        series.push({ name: 'SMA 60', type: 'line', data: calcSMA(normalizedData, 60) });
+      }
+      if (selectedIndicators.includes('EMA20')) {
+        series.push({ name: 'EMA 20', type: 'line', data: calcEMA(normalizedData, 20) });
+      }
+      if (selectedIndicators.includes('EMA60')) {
+        series.push({ name: 'EMA 60', type: 'line', data: calcEMA(normalizedData, 60) });
+      }
+      if (selectedIndicators.includes('BOLLINGER_BANDS')) {
+        const bb = calcBollingerBands(normalizedData, 20, 2);
+        series.push({ name: '볼린저 상단', type: 'line', data: bb.upper });
+        series.push({ name: '볼린저 하단', type: 'line', data: bb.lower });
+      }
+    }
 
-      setSeries(newSeries);
-      setLoading(false);
-    };
+    return series;
+  }, [normalizedData, chartMode, selectedIndicators]);
 
-    fetchChartData();
-  }, [stockCode, startDate, endDate, selectedIndicators]);
-
-  // 차트 옵션 설정
-  const options = {
+  const mainOptions = {
     chart: {
-      type: 'line', // 혼합 차트를 그릴 때는 최상위 type을 'line'으로 둡니다.
-      height: 400,
-      toolbar: { show: false }
+      type: 'candlestick',
+      height: 350,
+      toolbar: { show: true },
+      animations: { enabled: false },
     },
     stroke: {
-      // 캔들차트 테두리는 얇게(1), 추가되는 꺾은선(보조지표)들은 두껍게(2)
-      width: [1, 2, 2, 2, 2],
-      curve: 'smooth'
+      width: mainSeries.map((s) => (s.type === 'candlestick' ? 1 : 2)),
+      curve: 'smooth',
     },
     xaxis: {
       type: 'datetime',
     },
     yaxis: {
-      tooltip: { enabled: true }
+      tooltip: { enabled: true },
+      labels: {
+        formatter: (val) => (val ? `${Math.round(val).toLocaleString()}원` : ''),
+      },
     },
     plotOptions: {
       candlestick: {
         colors: {
-          upward: '#E22926', // 한국 주식 시장 상승(빨강)
-          downward: '#2679ED' // 한국 주식 시장 하락(파랑)
+          upward: '#E22926', // 상승 빨강
+          downward: '#2679ED', // 하락 파랑
         },
-        wick: { useFillColor: true }
-      }
-    }
+        wick: { useFillColor: true },
+      },
+    },
   };
 
-  if (loading) return <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>차트를 불러오는 중...</div>;
+  // 하단 보조 차트: 거래량 (VOLUME) & RSI
+  const showVolume = chartMode === 'DAILY' && selectedIndicators.includes('VOLUME');
+  const showRSI = chartMode === 'DAILY' && selectedIndicators.includes('RSI');
+
+  const volumeSeries = useMemo(() => {
+    if (!showVolume) return [];
+    return [
+      {
+        name: '거래량',
+        data: normalizedData.map((d) => ({ x: d.x, y: d.volume || 0 })),
+      },
+    ];
+  }, [normalizedData, showVolume]);
+
+  const rsiSeries = useMemo(() => {
+    if (!showRSI) return [];
+    return [
+      {
+        name: 'RSI (14)',
+        data: calcRSI(normalizedData, 14),
+      },
+    ];
+  }, [normalizedData, showRSI]);
 
   return (
-    <div style={{ width: '100%', height: '400px' }}>
-      <ReactApexChart 
-        options={options} 
-        series={series} 
-        type="line" // 혼합 차트 필수 설정
-        height={400} 
-      />
+    <div>
+      {/* 1. 메인 가격 캔들차트 */}
+      <ReactApexChart options={mainOptions} series={mainSeries} type="line" height={350} />
+
+      {/* 2. 거래량 바 차트 (체크 시 하단에 표시) */}
+      {showVolume && (
+        <div style={{ marginTop: '10px' }}>
+          <ReactApexChart
+            options={{
+              chart: { type: 'bar', height: 130, toolbar: { show: false }, animations: { enabled: false } },
+              xaxis: { type: 'datetime' },
+              yaxis: {
+                labels: { formatter: (val) => (val ? `${Math.round(val / 10000).toLocaleString()}만` : '0') },
+              },
+              dataLabels: { enabled: false },
+              colors: ['#6B7280'],
+              title: { text: '거래량', style: { fontSize: '12px', color: '#6B7280' } },
+            }}
+            series={volumeSeries}
+            type="bar"
+            height={130}
+          />
+        </div>
+      )}
+
+      {/* 3. RSI 선 차트 (체크 시 하단에 표시) */}
+      {showRSI && (
+        <div style={{ marginTop: '10px' }}>
+          <ReactApexChart
+            options={{
+              chart: { type: 'line', height: 130, toolbar: { show: false }, animations: { enabled: false } },
+              stroke: { width: 2, curve: 'smooth' },
+              xaxis: { type: 'datetime' },
+              yaxis: { min: 0, max: 100, tickAmount: 2 },
+              colors: ['#8B5CF6'],
+              title: { text: 'RSI (14)', style: { fontSize: '12px', color: '#6B7280' } },
+            }}
+            series={rsiSeries}
+            type="line"
+            height={130}
+          />
+        </div>
+      )}
     </div>
   );
 }
