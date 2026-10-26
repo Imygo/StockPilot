@@ -68,17 +68,19 @@ class Latest:
             rows=list(self.pending.values());self.pending.clear();return rows
 
 
-def save_quotes(conn,rows):
+def save_quotes(conn,rows,table="stock_live_quotes"):
+    if table not in ("stock_live_quotes","stock_live_quotes_paper"):
+        raise ValueError("Unsupported quotes table")
     # Preserve monotonic exchange time/cumulative volume even across process restarts.
     try:
         with conn.cursor() as cur:
             for r in rows:
-                cur.execute('SELECT trade_time,cumulative_volume FROM stock_live_quotes WHERE stock_code=%s FOR UPDATE',(r[0],))
+                cur.execute(f'SELECT trade_time,cumulative_volume FROM {table} WHERE stock_code=%s FOR UPDATE',(r[0],))
                 old=cur.fetchone()
                 if old is not None and order(r)<=tuple(old):continue
-                if old is None:cur.execute(INSERT,r)
+                if old is None:cur.execute(INSERT.replace("stock_live_quotes",table),r)
                 else:
-                    cur.execute('''UPDATE stock_live_quotes SET trade_time=%s,price=%s,tick_volume=%s,
+                    cur.execute(f'''UPDATE {table} SET trade_time=%s,price=%s,tick_volume=%s,
 cumulative_volume=%s,change_amount=%s,change_rate=%s,received_at=%s WHERE stock_code=%s''',(*r[1:],r[0]))
         conn.commit()
     except Exception:conn.rollback();raise

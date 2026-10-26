@@ -17,3 +17,9 @@ __pycache__/
 !/artifacts/top200-binary-v1/xgboost/
 *.csv
 *.zip
+
+# Local live evaluation reports
+/evaluations/
+
+# Empty multi-account paper configuration template
+!.env.paper.example

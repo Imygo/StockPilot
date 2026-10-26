@@ -42,7 +42,7 @@ schema·78개 입력·학습 universe를 검증합니다. UP 점수는 보정된
 ## 4. 자동 예측 및 의견 저장
 
 ```powershell
-..\.venv\Scripts\python.exe predictor.py --write --loop
+..\.venv\Scripts\python.exe predictor.py --write --loop --require-snapshot
 ```
 
 20초마다 최신 5분 경계를 확인합니다. 동일 종목·경계·모델은 처음 기록한 예측을 보존하고
@@ -97,3 +97,7 @@ reference_close와 input_sha256를 저장해 예측 기준과 입력을 추적�
 
 미래 입력 차단, 결측·시장 정보 부족, 장외 시각, 만료·중복 저장 방지를 검증합니다.
 원본 모델은 수정하지 않습니다. 새 수집으로 얻는 이후 기간의 결과를 별도로 평가해야 합니다.
+
+## 수집 완료 후 예측 모드
+
+[스냅샷 실행 안내](SNAPSHOT_RUN.md)를 먼저 확인하세요. 기존 수집기·예측기를 중단하고 `predictor.py --init-db`로 새 테이블을 준비한 뒤 위의 `--publish-snapshot` / `--require-snapshot` 명령을 함께 사용합니다. 모델은 그대로이며 데이터 고정과 입력 감사 기록이 추가됐습니다.

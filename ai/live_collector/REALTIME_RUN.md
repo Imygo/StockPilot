@@ -10,7 +10,7 @@
    predictor.py는 기존대로 해당 경계의 충분한 시장 데이터가 준비되면 예측합니다.
 
 기존 .env를 재사용합니다. 덮어쓰지 마세요. 기존 수집기는 Ctrl+C로 중단하고 새 명령으로 실행합니다.
-AI 추론기 자체는 변경하지 않았습니다.
+스냅샷 기반 실행 방법은 SNAPSHOT_RUN.md를 참고하세요.
 
 ## 최초 설치 및 테이블 생성
 
@@ -40,7 +40,7 @@ watchlist.json 기본값은 삼성전자입니다. 실행 중 파일을 수정�
 
 ```powershell
 cd <프로젝트 경로>\ai\live_collector
-..\.venv\Scripts\python.exe collector.py --universe ..\data\top200-20261012.json --write --loop --ai-cycle
+..\.venv\Scripts\python.exe collector.py --universe ..\data\top200-20261012.json --write --loop --ai-cycle --publish-snapshot
 ```
 
 완성 확인용 1분 여유는 유지합니다. 예: 11:01부터 11:00 경계 분봉을 모읍니다.
@@ -56,7 +56,7 @@ ai_cycle_finished 로그의 seconds와 target_expired로 실제 처리 속도/�
 있을 수 있습니다. 본인 계정에서 초당10건 사용 가능함을 확인한 경우에만 다음처럼 설정하세요.
 
 ```powershell
-..\.venv\Scripts\python.exe collector.py --universe ..\data\top200-20261012.json --write --loop --ai-cycle --request-delay 0.1 --confirmed-fast-rest
+..\.venv\Scripts\python.exe collector.py --universe ..\data\top200-20261012.json --write --loop --ai-cycle --publish-snapshot --request-delay 0.1 --confirmed-fast-rest
 ```
 
 이를 실행하면 앞 명령은 반드시 중단합니다. 권장 간격 안내와 계정 실제 한도를 먼저 확인하세요.
@@ -68,7 +68,7 @@ ai_cycle_finished 로그의 seconds와 target_expired로 실제 처리 속도/�
 
 ```powershell
 cd <프로젝트 경로>\ai\live_collector
-..\.venv\Scripts\python.exe predictor.py --write --loop
+..\.venv\Scripts\python.exe predictor.py --write --loop --require-snapshot
 ```
 
 처음 사용한다면 먼저 predictor.py --init-db를 실행합니다.
@@ -112,3 +112,7 @@ KIS 공식 공지: https://apiportal.koreainvestment.com/community/10000000-0000
 
 실제 장중 수신·DB 기록·Spring 화면 반영은 별도 실행 확인이 필요합니다.
 종료 직전 버퍼에 남은 최신값은 보존되지 않을 수 있으나 재연결 후 새 체결로 갱신됩니다.
+
+## 수집 완료 후 예측 모드
+
+[스냅샷 실행 안내](SNAPSHOT_RUN.md)를 먼저 확인하세요. 기존 수집기·예측기를 중단하고 `predictor.py --init-db`로 새 테이블을 준비한 뒤 위의 `--publish-snapshot` / `--require-snapshot` 명령을 함께 사용합니다. 모델은 그대로이며 데이터 고정과 입력 감사 기록이 추가됐습니다.

@@ -241,13 +241,24 @@ def main():
     p.add_argument('--check-db',action='store_true',help='Read-only DB connection/schema check; no KIS requests')
     p.add_argument('--backfill-today',action='store_true');p.add_argument('--interval',type=int,default=60)
     p.add_argument('--request-delay',type=float,default=.6);p.add_argument('--lag-minutes',type=int,default=1)
+    p.add_argument('--publish-snapshot',action='store_true',help='Freeze market data after a successful AI collection cycle')
+    p.add_argument('--init-snapshot-db',action='store_true',help='Create immutable snapshot table only')
     p.add_argument('--ai-cycle',action='store_true',help='Collect one common completed 5m boundary per cycle; no extra 60s sleep')
     p.add_argument('--confirmed-fast-rest',action='store_true',help='Explicitly confirm your account permits >2 requests/sec before lowering request-delay')
     args=p.parse_args()
+    if args.init_snapshot_db:
+        from snapshots import SNAPSHOT_DDL
+        conn=connect()
+        try:
+            with conn.cursor() as cur:cur.execute(SNAPSHOT_DDL)
+            conn.commit();print('ai_market_snapshots ready. Existing tables not altered.')
+        finally:conn.close()
+        return 0
     if args.check_db:return check_db()
     minimum=.1 if args.confirmed_fast_rest else .5
     if args.interval<10 or args.request_delay<minimum or args.lag_minutes<1: p.error(f'Require interval>=10, request-delay>={minimum}, lag-minutes>=1')
     if args.ai_cycle and not args.loop:p.error('--ai-cycle requires --loop')
+    if args.publish_snapshot and not (args.ai_cycle and args.write):p.error('--publish-snapshot requires --ai-cycle --write --loop')
     codes=[s['stock_code'] for s in json.loads(Path(args.universe).read_text(encoding='utf-8'))['symbols']] if args.universe else (args.symbols or '005930').split(',')
     codes=list(dict.fromkeys(code_check(c.strip()) for c in codes))
     if not codes:p.error('Empty universe')
@@ -264,6 +275,19 @@ def main():
                 failures=sweep(client,codes,args.write,args.backfill_today,args.lag_minutes,cutoff)
                 elapsed=time.monotonic()-started
                 if cutoff is not None:
+                    if args.publish_snapshot:
+                        from snapshots import publish
+                        snapshot_conn=None
+                        try:
+                            snapshot_conn=connect()
+                            print(json.dumps(publish(snapshot_conn,cutoff,codes,failures)),flush=True)
+                        except Exception as exc:
+                            detail=error_details(exc)
+                            if detail.get('mysql_code') in (1146,1054):
+                                detail['hint']='Check ai_market_snapshots and minute_chart_data; run predictor.py --init-db first.'
+                            print(json.dumps(dict(event='snapshot_failed',candle_end=str(cutoff),**detail)),flush=True)
+                        finally:
+                            if snapshot_conn:snapshot_conn.close()
                     previous=cutoff
                     print(json.dumps(dict(event='ai_cycle_finished',candle_end=str(cutoff),
                         seconds=round(elapsed,2),failed_symbols=failures,request_delay=client.delay,
