@@ -1,0 +1,5 @@
+KorFin-ASC — Son, Lee, Kang, Hahm (2023)
+https://arxiv.org/abs/2301.03136
+Source: https://huggingface.co/datasets/amphora/korfin-asc
+License: CC BY-SA 4.0 https://creativecommons.org/licenses/by-sa/4.0/
+Modified: normalization, duplicate/conflict filtering, grouped split. See manifest.json.

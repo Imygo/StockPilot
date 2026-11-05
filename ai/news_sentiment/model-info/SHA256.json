@@ -1,0 +1,15 @@
+{
+  "artifact-check.json": "f5f95f1eb477c798fe856f4c84a03ed8fcb0a0d543ffb3c6d6072620ce0a28d5",
+  "calibration.json": "d215c4e2ae47de37ec1e80be0ab5e77453ca99ee6253f4523aa6bab18423a73c",
+  "config.json": "4354b3941af47ad7981bbe1257b9cd4a72e12e3ca1b4ab9ab13448c6305349b9",
+  "DATASET_ATTRIBUTION.txt": "9b827b39cb00df765b6d85c748ef54d79ce74c58bf6706cd1695c643e95702f2",
+  "environment.txt": "3e5830e4da4f962039747d816ffd482e26f5cfb42dda67cc3af1bd5ed7523761",
+  "evaluation.json": "47449dfcfd58f32a964501aeb2a65affb5af3833c071cb8fe18818888a302374",
+  "model.safetensors": "fa26ccdc384a23e814fa9116c0427b9937919770b0289fe37ca95ef8151ccdce",
+  "MODEL_CARD.md": "9a175e264747444ffc802e8c9f628cdfd18516da716ff716de683cb79ff443d0",
+  "special_tokens_map.json": "a627d4e20da5e9482f6a08f667ead8809ff9a22dbf6284b91dacd57f217b4555",
+  "tokenizer.json": "accc17a244c23db129b3623f7e936568f65207b5bb3029b9ad45fe48cc961607",
+  "tokenizer_config.json": "e4ac45e7679c783ff5c5a5f9c1ed12c1c5fb86eda7f160b0c68a43d300ff6c91",
+  "training.json": "71802df67f9d74f0305f621c0d33376645975ff77c27b25c045c9c344a3514e6",
+  "vocab.txt": "1ad4978b5dbe269dcc402a3c6eb71ceab21d712bca3b7d3b9994845e54cdcb39"
+}

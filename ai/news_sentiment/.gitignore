@@ -1,0 +1,17 @@
+/.venv/
+/venv/
+/__pycache__/
+**/__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+/models/
+/data/
+/logs/
+*.log
+*.zip
+*.safetensors
+*.pt
+*.pth
+*.xml
