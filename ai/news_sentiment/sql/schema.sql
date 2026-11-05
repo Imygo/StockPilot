@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS news_target_predictions (
+    article_id CHAR(64) NOT NULL,
+    stock_code VARCHAR(15) NOT NULL,
+    model_version VARCHAR(64) NOT NULL,
+    stock_name VARCHAR(100) NOT NULL,
+    aspect VARCHAR(100) NOT NULL,
+    market VARCHAR(10) NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    url TEXT NOT NULL,
+    published_at DATETIME NOT NULL,
+    text_hash CHAR(64) NOT NULL,
+    label ENUM('negative','neutral','positive') NOT NULL,
+    p_negative DOUBLE NOT NULL,
+    p_neutral DOUBLE NOT NULL,
+    p_positive DOUBLE NOT NULL,
+    quality_json JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(article_id,stock_code,model_version),
+    UNIQUE KEY target_text_model(text_hash,stock_code,model_version),
+    KEY stock_published(stock_code,published_at)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;

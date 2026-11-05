@@ -1,0 +1,20 @@
+{
+  "completed_at_utc": "2026-11-05T12:12:12.923395+00:00",
+  "fetched_stocks": 200,
+  "saved_article_target_pairs": 18953,
+  "unique_articles": 12037,
+  "stocks_with_results": 200,
+  "market_counts": {
+    "KOSPI": 100,
+    "KOSDAQ": 100
+  },
+  "labels": {
+    "positive": 8118,
+    "negative": 4177,
+    "neutral": 6658
+  },
+  "pending": 0,
+  "database": "stockpilot_sentiment_dev",
+  "verification": "Worker verified SQL read-back and commit before recording success; output count, keys and probabilities independently checked",
+  "source_db_accessed": false
+}

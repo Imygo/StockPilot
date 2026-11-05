@@ -1,0 +1,304 @@
+{
+  "metrics": {
+    "test_accuracy": 0.8498168498168498,
+    "test_macro_f1": 0.8467277540286012
+  },
+  "classification_report": {
+    "negative": {
+      "precision": 0.8878718535469108,
+      "recall": 0.8758465011286681,
+      "f1-score": 0.8818181818181818,
+      "support": 443.0
+    },
+    "neutral": {
+      "precision": 0.7980049875311721,
+      "recall": 0.7673860911270983,
+      "f1-score": 0.78239608801956,
+      "support": 417.0
+    },
+    "positive": {
+      "precision": 0.857685009487666,
+      "recall": 0.8950495049504951,
+      "f1-score": 0.875968992248062,
+      "support": 505.0
+    },
+    "accuracy": 0.8498168498168498,
+    "macro avg": {
+      "precision": 0.847853950188583,
+      "recall": 0.8460940324020871,
+      "f1-score": 0.8467277540286012,
+      "support": 1365.0
+    },
+    "weighted avg": {
+      "precision": 0.8492499931963747,
+      "recall": 0.8498168498168498,
+      "f1-score": 0.8492812925530272,
+      "support": 1365.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      388,
+      36,
+      19
+    ],
+    [
+      41,
+      320,
+      56
+    ],
+    [
+      8,
+      45,
+      452
+    ]
+  ],
+  "counts": {
+    "train": 6113,
+    "validation": 1340,
+    "test": 1365
+  },
+  "selection": {
+    "selected": "models/candidate-target-v2",
+    "rule": "validation macro-F1 then validation NLL; no test-based selection",
+    "validation": {
+      "models/20261105-182111": {
+        "accuracy": 0.8552238805970149,
+        "macro_f1": 0.8557696918527453,
+        "nll": 0.5773060321807861,
+        "ece_10_bins": 0.11188209192521535,
+        "brier": 0.25392138915255946
+      },
+      "models/candidate-target-v2": {
+        "accuracy": 0.8626865671641791,
+        "macro_f1": 0.8617767338868543,
+        "nll": 0.43710818886756897,
+        "ece_10_bins": 0.05606137491873839,
+        "brier": 0.22889730761234656
+      }
+    },
+    "temperature": 1.25594321575479,
+    "temperature_fit": "validation NLL on predefined 0.5..5 grid; no test fitting"
+  },
+  "raw_test_comparison": {
+    "models/20261105-182111": {
+      "accuracy": 0.8556776556776556,
+      "macro_f1": 0.8535161449278507,
+      "nll": 0.594322681427002,
+      "ece_10_bins": 0.11743418144219085,
+      "brier": 0.2616072669457916,
+      "confusion_matrix": [
+        [
+          393,
+          40,
+          10
+        ],
+        [
+          39,
+          333,
+          45
+        ],
+        [
+          8,
+          55,
+          442
+        ]
+      ],
+      "classification_report": {
+        "negative": {
+          "precision": 0.8931818181818182,
+          "recall": 0.8871331828442438,
+          "f1-score": 0.8901472253680635,
+          "support": 443.0
+        },
+        "neutral": {
+          "precision": 0.7780373831775701,
+          "recall": 0.7985611510791367,
+          "f1-score": 0.7881656804733728,
+          "support": 417.0
+        },
+        "positive": {
+          "precision": 0.8893360160965795,
+          "recall": 0.8752475247524752,
+          "f1-score": 0.8822355289421158,
+          "support": 505.0
+        },
+        "accuracy": 0.8556776556776556,
+        "macro avg": {
+          "precision": 0.8535184058186559,
+          "recall": 0.8536472862252853,
+          "f1-score": 0.8535161449278507,
+          "support": 1365.0
+        },
+        "weighted avg": {
+          "precision": 0.8565830200500842,
+          "recall": 0.8556776556776556,
+          "f1-score": 0.8560653858690235,
+          "support": 1365.0
+        }
+      }
+    },
+    "models/candidate-target-v2": {
+      "accuracy": 0.8498168498168498,
+      "macro_f1": 0.8467277540286012,
+      "nll": 0.45918238162994385,
+      "ece_10_bins": 0.07125864472144693,
+      "brier": 0.24199151655510096,
+      "confusion_matrix": [
+        [
+          388,
+          36,
+          19
+        ],
+        [
+          41,
+          320,
+          56
+        ],
+        [
+          8,
+          45,
+          452
+        ]
+      ],
+      "classification_report": {
+        "negative": {
+          "precision": 0.8878718535469108,
+          "recall": 0.8758465011286681,
+          "f1-score": 0.8818181818181818,
+          "support": 443.0
+        },
+        "neutral": {
+          "precision": 0.7980049875311721,
+          "recall": 0.7673860911270983,
+          "f1-score": 0.78239608801956,
+          "support": 417.0
+        },
+        "positive": {
+          "precision": 0.857685009487666,
+          "recall": 0.8950495049504951,
+          "f1-score": 0.875968992248062,
+          "support": 505.0
+        },
+        "accuracy": 0.8498168498168498,
+        "macro avg": {
+          "precision": 0.847853950188583,
+          "recall": 0.8460940324020871,
+          "f1-score": 0.8467277540286012,
+          "support": 1365.0
+        },
+        "weighted avg": {
+          "precision": 0.8492499931963747,
+          "recall": 0.8498168498168498,
+          "f1-score": 0.8492812925530272,
+          "support": 1365.0
+        }
+      }
+    }
+  },
+  "selected_calibrated_test": {
+    "accuracy": 0.8498168498168498,
+    "macro_f1": 0.8467277540286012,
+    "nll": 0.43577754497528076,
+    "ece_10_bins": 0.06669165118710027,
+    "brier": 0.2324909139280831,
+    "confusion_matrix": [
+      [
+        388,
+        36,
+        19
+      ],
+      [
+        41,
+        320,
+        56
+      ],
+      [
+        8,
+        45,
+        452
+      ]
+    ],
+    "classification_report": {
+      "negative": {
+        "precision": 0.8878718535469108,
+        "recall": 0.8758465011286681,
+        "f1-score": 0.8818181818181818,
+        "support": 443.0
+      },
+      "neutral": {
+        "precision": 0.7980049875311721,
+        "recall": 0.7673860911270983,
+        "f1-score": 0.78239608801956,
+        "support": 417.0
+      },
+      "positive": {
+        "precision": 0.857685009487666,
+        "recall": 0.8950495049504951,
+        "f1-score": 0.875968992248062,
+        "support": 505.0
+      },
+      "accuracy": 0.8498168498168498,
+      "macro avg": {
+        "precision": 0.847853950188583,
+        "recall": 0.8460940324020871,
+        "f1-score": 0.8467277540286012,
+        "support": 1365.0
+      },
+      "weighted avg": {
+        "precision": 0.8492499931963747,
+        "recall": 0.8498168498168498,
+        "f1-score": 0.8492812925530272,
+        "support": 1365.0
+      }
+    }
+  },
+  "split_sha256": {
+    "train": "7841b8f21f99fc51a5f9569f223422fcac30ce48f2bcc1642236e6c5dcd12353",
+    "validation": "bfc422254f9a0ae7a3354ca830f0d42b20b563d53e7f22fe11ed7cda2155cf6c",
+    "test": "9a304a80af096fc226405c3acad3be37aa877aabf512d27391d7a99851fab99f"
+  },
+  "dataset_manifest": {
+    "source_rows": 8818,
+    "unique_pairs": 8818,
+    "conflicting_pairs_removed": 0,
+    "duplicate_rows_removed": 0,
+    "groups": 6104,
+    "seed": 42,
+    "counts": {
+      "train": {
+        "negative": 2119,
+        "neutral": 1763,
+        "positive": 2231
+      },
+      "validation": {
+        "positive": 525,
+        "negative": 405,
+        "neutral": 410
+      },
+      "test": {
+        "positive": 505,
+        "neutral": 417,
+        "negative": 443
+      }
+    },
+    "repository": "amphora/korfin-asc",
+    "revision": "07cc4a29341ef26e8614ae1139847f4d4888727d",
+    "source_file": "data/train-00000-of-00001-44ba6365e50c2c0a.parquet",
+    "source_sha256": "4f41939d72c1402fcea8c2a15e8f24b578c51baf642b5a874eeeac40a017b355",
+    "local_source_override": false,
+    "license": "CC-BY-SA-4.0",
+    "authors": "Guijin Son, Hanwool Lee, Nahyeon Kang, Moonjeong Hahm (2023)",
+    "source_url": "https://huggingface.co/datasets/amphora/korfin-asc",
+    "paper": "https://arxiv.org/abs/2301.03136",
+    "modifications": "Whitespace/HTML normalization, pair deduplication, conflicting label removal, grouped 70/15/15 split.",
+    "split_method": "Seeded sentence/SID groups, NOT chronological or an official benchmark split.",
+    "limitations": "Related events or reports with different sentence IDs may remain across splits. Latest Samsung news requires separate evaluation."
+  },
+  "limitations": [
+    "Public grouped split, not chronological; related events may cross splits.",
+    "Baseline test scores were previously inspected; this is not a newly collected blind benchmark.",
+    "AI-assisted 60-news review was not used for training or calibration and is not independent human ground truth.",
+    "No verified claim of accuracy on current Samsung news or future stock returns."
+  ]
+}

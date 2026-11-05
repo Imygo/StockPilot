@@ -1,0 +1,7 @@
+{
+  "temperature": 1.25594321575479,
+  "fitted_on": "validation",
+  "n_validation": 1340,
+  "raw_validation_nll": 0.43710818886756897,
+  "calibrated_validation_nll": 0.419616162776947
+}

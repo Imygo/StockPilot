@@ -1,0 +1,19 @@
+{
+  "validation_metrics": {
+    "eval_loss": 0.5401302576065063,
+    "eval_accuracy": 0.8626865671641791,
+    "eval_macro_f1": 0.8617767338868543,
+    "eval_runtime": 1.3746,
+    "eval_samples_per_second": 974.827,
+    "eval_steps_per_second": 61.109,
+    "epoch": 4.0
+  },
+  "input_format": "target-marked-pair-v2",
+  "base": "klue/roberta-base",
+  "revision": "02f94ba5e3fcb7e2a58a390b8639b0fac974a8da",
+  "epochs": 4,
+  "label_smoothing": 0.05,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "test_evaluated": false
+}
