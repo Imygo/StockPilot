@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, TrendingUp } from 'lucide-react';
-import { stockAPI, opinionAPI, aiOpinionAPI, chartAPI, userAPI, getErrorMessage } from '../services/api';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, TrendingUp, Newspaper, ExternalLink } from 'lucide-react';
+import { stockAPI, opinionAPI, aiOpinionAPI, chartAPI, userAPI, newsAPI, getErrorMessage } from '../services/api';
 import StockChart from '../components/StockChart';
 
-// 백엔드 Enum 명칭과 100% 일치시킨 기술적 지표 목록[cite: 3, 11]
 const INDICATOR_OPTIONS = [
   { id: 'SMA20', label: '이동평균선 (20일)' },
   { id: 'SMA60', label: '이동평균선 (60일)' },
@@ -15,7 +14,6 @@ const INDICATOR_OPTIONS = [
   { id: 'VOLUME', label: '거래량' },
 ];
 
-// 시연 시 기본 커뮤니티 투표수 (백엔드 community_opinions 테이블이 비어있어 500 에러가 날 때 시연용 초기값)[cite: 11, 14]
 const DEMO_COMMUNITY_DEFAULTS = {
   '005930': { buy: 342, sell: 228 },
   '000660': { buy: 215, sell: 89 },
@@ -23,6 +21,67 @@ const DEMO_COMMUNITY_DEFAULTS = {
   '002720': { buy: 64, sell: 41 },
   '003280': { buy: 92, sell: 78 },
 };
+
+// 백엔드 뉴스 API 연결 전 또는 빈 데이터 시 화면 구성을 확인하기 위한 시연용 폴백 뉴스
+const getDemoNews = (stockName = '종목') => [
+  {
+    id: 1,
+    title: `${stockName}, 차세대 핵심 사업 대규모 공급 계약 체결 소식에 강세`,
+    url: 'https://finance.naver.com/news/',
+    publishedAt: '2026-10-23 14:30',
+    sentiment: 'POSITIVE',
+  },
+  {
+    id: 2,
+    title: `글로벌 업황 개선 기대감… ${stockName} 4분기 실적 컨센서스 상회 전망`,
+    url: 'https://finance.naver.com/news/',
+    publishedAt: '2026-10-23 13:15',
+    sentiment: 'POSITIVE',
+  },
+  {
+    id: 3,
+    title: `${stockName}, 정기 주주총회 및 기업설명회(IR) 일정 공시`,
+    url: 'https://finance.naver.com/news/',
+    publishedAt: '2026-10-23 11:45',
+    sentiment: 'NEUTRAL',
+  },
+  {
+    id: 4,
+    title: `환율 변동성 확대에 따른 수출주 단기 차익실현 매물 출회 분석`,
+    url: 'https://finance.naver.com/news/',
+    publishedAt: '2026-10-23 10:20',
+    sentiment: 'NEGATIVE',
+  },
+  {
+    id: 5,
+    title: `외국인·기관 수급 공방 지속… ${stockName} 장중 보합권 등락`,
+    url: 'https://finance.naver.com/news/',
+    publishedAt: '2026-10-23 09:15',
+    sentiment: 'NEUTRAL',
+  },
+];
+
+// 백엔드 응답 DTO 필드명이 다양할 경우를 모두 포괄하는 정규화 함수
+function normalizeNewsItem(item, index) {
+  const rawSentiment = String(item.sentiment ?? item.sentimentResult ?? item.label ?? 'NEUTRAL').toUpperCase();
+  let sentiment = 'NEUTRAL';
+  if (rawSentiment.includes('POS') || rawSentiment.includes('긍정') || rawSentiment === '1' || rawSentiment === 'GOOD') {
+    sentiment = 'POSITIVE';
+  } else if (rawSentiment.includes('NEG') || rawSentiment.includes('부정') || rawSentiment === '-1' || rawSentiment === 'BAD') {
+    sentiment = 'NEGATIVE';
+  }
+
+  const rawTime = item.publishedAt ?? item.articleTime ?? item.pubDate ?? item.createdAt ?? '';
+  const formattedTime = rawTime ? String(rawTime).replace('T', ' ').slice(0, 16) : '-';
+
+  return {
+    id: item.id ?? item.newsId ?? index,
+    title: item.title ?? item.newsTitle ?? '제목 없음',
+    url: item.url ?? item.link ?? item.newsUrl ?? '#',
+    publishedAt: formattedTime,
+    sentiment,
+  };
+}
 
 function StockDetail() {
   const { code } = useParams();
@@ -33,9 +92,10 @@ function StockDetail() {
   const [community, setCommunity] = useState(null);
   const [aiOpinion, setAiOpinion] = useState(null);
   const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line no-unused-vars
   const [errors, setErrors] = useState({});
 
-  // 2. 사용자 등록 및 투표 상태 (버그 수정됨: useState 정상 적용)
+  // 2. 사용자 등록 및 투표 상태
   const [userId, setUserId] = useState('');
   const [registeredUser, setRegisteredUser] = useState(() => sessionStorage.getItem('stockpilot_user') || '');
   const [registering, setRegistering] = useState(false);
@@ -45,36 +105,49 @@ function StockDetail() {
   const [voteError, setVoteError] = useState('');
 
   // 3. 차트 및 기술적 지표 상태
-  // 2025년 데이터만 있는 종목(002720, 003280)과 2026년 데이터까지 있는 종목(005930, 000660, 003490) 모두 지원
-  const [chartMode, setChartMode] = useState('DAILY'); // 'DAILY' | 'MINUTE'
+  const [chartMode, setChartMode] = useState('DAILY');
   const [startDate, setStartDate] = useState('2025-01-01');
   const [endDate, setEndDate] = useState('2026-10-23');
-  const [candleStart, setCandleStart] = useState('2026-10-23T09:00:00');
+  const [candleStart] = useState('2026-10-23T09:00:00');
   const [selectedIndicators, setSelectedIndicators] = useState(['SMA20', 'VOLUME']);
 
-  // 일봉 전체 캐시 (분봉으로 전환해도 상단 현재가/최고/최저 요약바가 사라지지 않도록 유지)
   const [dailyCandlesCache, setDailyCandlesCache] = useState([]);
   const [candles, setCandles] = useState([]);
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState('');
 
-  // 초기 데이터 로드 (종목 상세, 커뮤니티 의견, AI 의견)
+  // 4. 뉴스 감성 분석 상태
+  const [newsList, setNewsList] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsFilter, setNewsFilter] = useState('ALL'); // 'ALL' | 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE'
+  const [isDemoNews, setIsDemoNews] = useState(false);
+
+  // 초기 데이터 로드 (종목 상세, 커뮤니티 의견, AI 의견, 뉴스 감성 분석)
   useEffect(() => {
     let ignore = false;
 
     async function loadDetail() {
       setLoading(true);
+      setNewsLoading(true);
+
       const results = await Promise.allSettled([
         stockAPI.getStockDetail(code),
         opinionAPI.getCommunityOpinion(code),
         aiOpinionAPI.getAiOpinion(code),
+        newsAPI.getStockNews(code, 30),
       ]);
 
       if (ignore) return;
 
       const nextErrors = {};
-      if (results[0].status === 'fulfilled') setStock(results[0].value);
-      else nextErrors.stock = getErrorMessage(results[0].reason);
+      let loadedStockName = '해당 종목';
+
+      if (results[0].status === 'fulfilled') {
+        setStock(results[0].value);
+        loadedStockName = results[0].value?.stockName || loadedStockName;
+      } else {
+        nextErrors.stock = getErrorMessage(results[0].reason);
+      }
 
       if (results[1].status === 'fulfilled') {
         setCommunity(results[1].value);
@@ -95,8 +168,35 @@ function StockDetail() {
       if (results[2].status === 'fulfilled') setAiOpinion(results[2].value);
       else nextErrors.ai = getErrorMessage(results[2].reason);
 
+      // 뉴스 응답 처리 (배열 형태 또는 { items/news/content: [...] } 형태 모두 대응)
+      if (results[3].status === 'fulfilled') {
+        const rawData = results[3].value;
+        const rawArray = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.news)
+          ? rawData.news
+          : Array.isArray(rawData?.items)
+          ? rawData.items
+          : Array.isArray(rawData?.content)
+          ? rawData.content
+          : [];
+
+        if (rawArray.length > 0) {
+          setNewsList(rawArray.map(normalizeNewsItem));
+          setIsDemoNews(false);
+        } else {
+          setNewsList(getDemoNews(loadedStockName));
+          setIsDemoNews(true);
+        }
+      } else {
+        // 백엔드 API 확정 전이거나 에러 발생 시 시연용 뉴스 표시
+        setNewsList(getDemoNews(loadedStockName));
+        setIsDemoNews(true);
+      }
+
       setErrors(nextErrors);
       setLoading(false);
+      setNewsLoading(false);
     }
 
     loadDetail();
@@ -131,7 +231,6 @@ function StockDetail() {
             }
           }
         } else {
-          // 분봉 조회 (2026-10-23T09:00:00 기준)
           const rows = await chartAPI.getMinuteChart(code, candleStart || '2026-10-23T09:00:00');
           if (!ignore) setCandles(Array.isArray(rows) ? rows : []);
         }
@@ -151,7 +250,7 @@ function StockDetail() {
     };
   }, [code, chartMode, startDate, endDate, candleStart, selectedIndicators]);
 
-  // 상단 요약바 시세 계산 (stock 테이블 값이 NULL인 종목은 일봉 캐시에서 최신 종가/등락률/거래량 자동 추출)
+  // 상단 요약바 시세 계산
   const displayMetrics = useMemo(() => {
     const sourceCandles = dailyCandlesCache.length > 0 ? dailyCandlesCache : candles;
     const latestCandle = sourceCandles.length > 0 ? sourceCandles[sourceCandles.length - 1] : null;
@@ -181,13 +280,33 @@ function StockDetail() {
     };
   }, [stock, dailyCandlesCache, candles]);
 
+  // 뉴스 감성 집계 및 필터링
+  const newsStats = useMemo(() => {
+    const counts = { POSITIVE: 0, NEUTRAL: 0, NEGATIVE: 0 };
+    newsList.forEach((n) => {
+      if (counts[n.sentiment] !== undefined) counts[n.sentiment] += 1;
+    });
+    const total = newsList.length;
+    return {
+      ...counts,
+      total,
+      posPct: total > 0 ? Math.round((counts.POSITIVE / total) * 100) : 0,
+      neuPct: total > 0 ? Math.round((counts.NEUTRAL / total) * 100) : 0,
+      negPct: total > 0 ? Math.max(0, 100 - Math.round((counts.POSITIVE / total) * 100) - Math.round((counts.NEUTRAL / total) * 100)) : 0,
+    };
+  }, [newsList]);
+
+  const filteredNews = useMemo(() => {
+    if (newsFilter === 'ALL') return newsList;
+    return newsList.filter((item) => item.sentiment === newsFilter);
+  }, [newsList, newsFilter]);
+
   const handleIndicatorChange = (indicatorId) => {
     setSelectedIndicators((prev) =>
       prev.includes(indicatorId) ? prev.filter((i) => i !== indicatorId) : [...prev, indicatorId]
     );
   };
 
-  // 사용자 ID 세션 등록 (POST /api/users)[cite: 1, 11]
   const handleRegisterUser = async (e) => {
     e.preventDefault();
     setRegistrationMessage('');
@@ -217,7 +336,6 @@ function StockDetail() {
     }
   };
 
-  // 매수/매도 투표 제출 (POST /api/stocks/{stockCode}/user-opinion)[cite: 2, 11]
   const handleVote = async (opinionType) => {
     setVoteError('');
 
@@ -230,7 +348,6 @@ function StockDetail() {
       if (err.response?.status === 401 || !registeredUser) {
         setVoteError('먼저 위 입력창에서 새 사용자 ID를 등록해 세션을 활성화해주세요.');
       } else if (err.response?.status === 500) {
-        // 세션을 정상 등록했는데도 백엔드 DB(community_opinions)가 비어있어 500이 뜨는 경우 프론트엔드에서 즉시 반영[cite: 11, 14]
         setCommunity((prev) => {
           const fallback = DEMO_COMMUNITY_DEFAULTS[code] || { buy: 15, sell: 10 };
           const base = prev || { buy: fallback.buy, sell: fallback.sell, myOpinion: null, voted: false };
@@ -267,6 +384,16 @@ function StockDetail() {
       return `${(cap / 10000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}조원`;
     }
     return `${cap.toLocaleString()}억원`;
+  };
+
+  const getSentimentBadge = (sentiment) => {
+    if (sentiment === 'POSITIVE') {
+      return { label: '긍정', bg: '#FEF2F2', color: '#E22926', border: '#FECACA' };
+    }
+    if (sentiment === 'NEGATIVE') {
+      return { label: '부정', bg: '#EFF6FF', color: '#2679ED', border: '#BFDBFE' };
+    }
+    return { label: '중립', bg: '#F3F4F6', color: '#4B5563', border: '#E5E7EB' };
   };
 
   const cardStyle = {
@@ -378,7 +505,7 @@ function StockDetail() {
         {/* 본문 2단 그리드 */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
           
-          {/* 좌측 영역: 기술적 지표 및 가격 차트 */}
+          {/* 좌측 영역: 기술적 지표 + 가격 차트 + 실시간 뉴스 감성 분석 */}
           <div>
             <div style={cardStyle}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '17px', display: 'flex', alignItems: 'center', gap: '6px', color: '#374151' }}>
@@ -532,6 +659,146 @@ function StockDetail() {
                   chartMode={chartMode}
                   selectedIndicators={selectedIndicators}
                 />
+              )}
+            </div>
+
+            {/* 새로 추가된 영역: 실시간 뉴스 감성 분석 카드 */}
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Newspaper size={18} color="#111" />
+                  <h3 style={{ margin: 0, fontSize: '17px', color: '#374151' }}>실시간 뉴스 감성 분석</h3>
+                  <span style={{ fontSize: '12px', color: '#6B7280' }}>
+                    (최근 {newsStats.total}건 · 15분 주기 업데이트)
+                  </span>
+                  {isDemoNews && (
+                    <span style={{ fontSize: '11px', backgroundColor: '#F3F4F6', color: '#6B7280', padding: '2px 6px', borderRadius: '4px' }}>
+                      미리보기
+                    </span>
+                  )}
+                </div>
+
+                {/* 감성별 필터 버튼 */}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[
+                    { id: 'ALL', label: `전체 (${newsStats.total})` },
+                    { id: 'POSITIVE', label: `긍정 (${newsStats.POSITIVE})` },
+                    { id: 'NEUTRAL', label: `중립 (${newsStats.NEUTRAL})` },
+                    { id: 'NEGATIVE', label: `부정 (${newsStats.NEGATIVE})` },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setNewsFilter(tab.id)}
+                      style={{
+                        padding: '5px 10px',
+                        borderRadius: '6px',
+                        border: newsFilter === tab.id ? '1px solid #111' : '1px solid #E5E7EB',
+                        backgroundColor: newsFilter === tab.id ? '#111' : '#FFF',
+                        color: newsFilter === tab.id ? '#FFF' : '#4B5563',
+                        fontSize: '12px',
+                        fontWeight: newsFilter === tab.id ? 'bold' : 'normal',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 긍정 / 중립 / 부정 3색 비율 요약 바 */}
+              {newsStats.total > 0 && (
+                <div style={{ marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px', fontWeight: 'bold' }}>
+                    <span style={{ color: '#E22926' }}>긍정 {newsStats.posPct}%</span>
+                    <span style={{ color: '#6B7280' }}>중립 {newsStats.neuPct}%</span>
+                    <span style={{ color: '#2679ED' }}>부정 {newsStats.negPct}%</span>
+                  </div>
+                  <div style={{ display: 'flex', height: '10px', borderRadius: '5px', overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
+                    <div style={{ width: `${newsStats.posPct}%`, backgroundColor: '#E22926', transition: 'width 0.3s' }} />
+                    <div style={{ width: `${newsStats.neuPct}%`, backgroundColor: '#9CA3AF', transition: 'width 0.3s' }} />
+                    <div style={{ width: `${newsStats.negPct}%`, backgroundColor: '#2679ED', transition: 'width 0.3s' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* 뉴스 기사 리스트 */}
+              {newsLoading ? (
+                <div style={{ padding: '30px 0', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
+                  뉴스 감성 분석 결과를 불러오는 중입니다...
+                </div>
+              ) : filteredNews.length === 0 ? (
+                <div style={{ padding: '30px 0', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+                  해당 조건의 뉴스 기사가 없습니다.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {filteredNews.map((item) => {
+                    const badge = getSentimentBadge(item.sentiment);
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #F0F0F0',
+                          backgroundColor: '#FAFAFA',
+                          textDecoration: 'none',
+                          color: '#111',
+                          transition: 'background-color 0.15s',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F3F4F6')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FAFAFA')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                          {/* 감성 결과 배지 */}
+                          <span
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              backgroundColor: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {badge.label}
+                          </span>
+
+                          {/* 뉴스 제목 */}
+                          <span
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#1F2937',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.title}
+                          </span>
+                        </div>
+
+                        {/* 기사 시각 및 외부 링크 아이콘 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '12px', color: '#6B7280' }}>{item.publishedAt}</span>
+                          <ExternalLink size={14} color="#9CA3AF" />
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
