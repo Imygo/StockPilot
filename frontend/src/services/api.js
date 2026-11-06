@@ -144,3 +144,14 @@ export const aiOpinionAPI = {
     return response.data;
   },
 };
+
+// 6. Stock News API (StockNewsController)
+export const newsAPI = {
+  // 특정 종목의 뉴스 및 감성 분석 결과 조회: GET /api/stocks/{stockCode}/news?limit=30
+  getStockNews: async (stockCode, limit = 30) => {
+    const response = await apiClient.get(`/api/stocks/${stockCode}/news`, {
+      params: { limit },
+    });
+    return response.data;
+  },
+};
