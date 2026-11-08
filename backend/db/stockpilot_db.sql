@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS user_opinions(
     stock_code VARCHAR(15) NOT NULL,
     user_id VARCHAR(50) NOT NULL,       -- users 테이블의 크기(50)와 동일하게 설정
     opinion ENUM('buy', 'neutral', 'sell') NOT NULL DEFAULT 'neutral',
+    vote_yn CHAR(1) NOT NULL DEFAULT 'N',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (stock_code, user_id)

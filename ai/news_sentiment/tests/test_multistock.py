@@ -45,7 +45,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store=Store();store.fail=True
             with self.assertRaises(RuntimeError):run_cycle(tmp,Predictor(),store,STOCKS,NoBudget(),lambda *a,**kw:[ITEM])
-            self.assertEqual(len(json.loads(Path(tmp,'pending.json').read_text())),2)
+            self.assertEqual(len(json.loads(Path(tmp,'pending.json').read_text(encoding='utf-8'))),2)
             store.fail=False
             result=run_cycle(tmp,Predictor(),store,STOCKS,NoBudget(),lambda *a,**kw:[])
             self.assertEqual(result['predicted_and_saved'],2)
