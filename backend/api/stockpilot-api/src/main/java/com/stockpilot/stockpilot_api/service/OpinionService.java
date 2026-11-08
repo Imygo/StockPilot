@@ -14,6 +14,8 @@ import com.stockpilot.stockpilot_api.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import java.util.NoSuchElementException;
 
@@ -94,8 +96,13 @@ public class OpinionService {
                         ? vote.opinion
                         : null;
 
+        // 의견을 저장한 시각을 저장함
+        LocalDateTime submittedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+
         // 같은 의견을 다시 보내도 집계는 증가하지 않는다
         if (oldOpinion == newOpinion) {
+            vote.updated_at = submittedAt;
+            userOpinionsRepository.save(vote);
             return;
         }
 
@@ -112,6 +119,7 @@ public class OpinionService {
 
         vote.opinion = newOpinion;
         vote.voteYn = "Y";
+        vote.updated_at = submittedAt;
 
         userOpinionsRepository.save(vote);
         communityOpinionsRepository.save(counts);

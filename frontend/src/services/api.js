@@ -43,6 +43,12 @@ export const userAPI = {
     });
     return response.data;
   },
+
+  getCurrentUser: async () => {
+    const response = await apiClient.get('/api/users/me');
+    return response.data;
+  },
+
 };
 
 // 2. Stock API (StockController)

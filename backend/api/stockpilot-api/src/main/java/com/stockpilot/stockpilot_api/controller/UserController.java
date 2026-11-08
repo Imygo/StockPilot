@@ -43,4 +43,18 @@ public class UserController {
     ) {
         return userService.existingUser(request);
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<java.util.Map<String, String>> currentUser(
+            @SessionAttribute(name = "userId", required = false)
+            String userId
+    ){
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return ResponseEntity.ok(
+                java.util.Map.of("userId", userId)
+        );
+    }
 }

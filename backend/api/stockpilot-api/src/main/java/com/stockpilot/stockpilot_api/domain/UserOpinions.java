@@ -24,7 +24,6 @@ public class UserOpinions {
     public OpinionType opinion;
     @Column(name = "vote_yn", nullable = false, length = 1)
     public String voteYn = "N";
-    @Generated(event = {EventType.INSERT, EventType.UPDATE})
-    @Column(name = "updated_at", insertable = false, updatable = false, columnDefinition = "TIMESTAMP")
+    @Column(name = "updated_at", nullable = false)
     public LocalDateTime updated_at;
 }
