@@ -3,6 +3,7 @@ package com.stockpilot.stockpilot_api.service;
 import com.stockpilot.stockpilot_api.domain.CommunityOpinions;
 import com.stockpilot.stockpilot_api.domain.UserOpinions;
 import com.stockpilot.stockpilot_api.domain.UserOpinionsId;
+import com.stockpilot.stockpilot_api.dto.CheckOwnOpinionResponse;
 import com.stockpilot.stockpilot_api.dto.CommunityOpinionViewResponse;
 import com.stockpilot.stockpilot_api.dto.CommunityOpinionsResponse;
 import com.stockpilot.stockpilot_api.dto.UserOpinionRequest;
@@ -33,7 +34,6 @@ public class OpinionService {
     // 그렇지 않다면 의견을 선택하도록 버튼을 제시
     @Transactional(readOnly = true)
     public OpinionType opinionCheck(String userId, String stockCode){
-
         // 사용자 의견 테이블의 PK는 stock_code + user_id이므로 해당 조건으로 검색한다.
         // 키쌍
         UserOpinionsId id = new UserOpinionsId(stockCode, userId);
@@ -50,6 +50,22 @@ public class OpinionService {
         return userOpinionsRepository.findById(id)
                 .filter(vote -> "Y".equals(vote.voteYn))
                 .map(vote -> vote.opinion)
+                .orElse(null);
+    }
+
+    // opinionCheck는 단순히 vote를 했는지를 확인하는 함수
+    // getOwnOpinion은 사용자가 제출했던 의견과, 그 시각을 받아오도록 하는 함수
+    // 이후에는 반환을 OpinionType T/F로 변경
+    @Transactional(readOnly = true)
+    public CheckOwnOpinionResponse getOwnOpinion(String userId, String stockCode){
+        UserOpinionsId id = new UserOpinionsId(stockCode, userId);
+
+        return userOpinionsRepository.findById(id)
+                .filter(vote -> "Y".equals(vote.voteYn))
+                .map(vote -> new CheckOwnOpinionResponse(
+                        vote.opinion,
+                        vote.updated_at
+                ))
                 .orElse(null);
     }
 

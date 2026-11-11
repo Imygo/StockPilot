@@ -7,4 +7,5 @@ import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserOpinionsRepository extends JpaRepository<UserOpinions, UserOpinionsId> {
+    
 }
