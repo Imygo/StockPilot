@@ -1,16 +1,14 @@
 import axios from 'axios';
 
-// Vite 프록시(http://localhost:5173/api)를 그대로 타도록 기본 baseURL은 빈 문자열로 설정합니다.
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
-  withCredentials: true, // 세션 쿠키(userId) 유지 필수
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// 공통 에러 메시지 추출 헬퍼 함수
 export const getErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;
@@ -26,7 +24,6 @@ export const getErrorMessage = (error) => {
 
 // 1. User API (UserController)
 export const userAPI = {
-  // 사용자 등록: POST /api/users (본문: { userId }, 응답: 201 Created 빈 본문)
   registerUser: async (userId) => {
     const trimmed = userId?.trim();
     if (!trimmed) {
@@ -36,7 +33,6 @@ export const userAPI = {
     return response.data;
   },
 
-  // 사용자 존재 여부 확인: GET /api/users/exists?userId=user001 (응답: boolean)
   checkUserExists: async (userId) => {
     const response = await apiClient.get('/api/users/exists', {
       params: { userId: userId?.trim() },
@@ -47,11 +43,9 @@ export const userAPI = {
 
 // 2. Stock API (StockController)
 export const stockAPI = {
-  // 주식 리스트 조회: GET /api/stocks
   getStocks: async ({ keyword, market, sort } = {}) => {
     const params = {};
 
-    // keyword가 전달되었는데 빈 문자열/공백이면 400 Bad Request 대상이므로 차단
     if (keyword !== undefined && keyword !== null) {
       if (keyword.trim() === '') {
         throw new Error('검색어를 입력해주세요.');
@@ -59,12 +53,10 @@ export const stockAPI = {
       params.keyword = keyword.trim();
     }
 
-    // market이 ALL이거나 없으면 파라미터에서 생략 (백엔드에서 전체 조회 처리)
     if (market && market !== 'ALL') {
       params.market = market;
     }
 
-    // 정렬 조건 전달 (예: VOLUME_DESC, SEARCH_PRIORITY 등)
     if (sort) {
       params.sort = sort;
     }
@@ -73,7 +65,6 @@ export const stockAPI = {
     return response.data;
   },
 
-  // 주식 상세정보 조회: GET /api/stocks/{stockCode}
   getStockDetail: async (stockCode) => {
     const response = await apiClient.get(`/api/stocks/${stockCode}`);
     return response.data;
@@ -82,13 +73,17 @@ export const stockAPI = {
 
 // 3. Opinion API (OpinionController)
 export const opinionAPI = {
-  // 커뮤니티 의견 조회: GET /api/stocks/{stockCode}/community-opinion
   getCommunityOpinion: async (stockCode) => {
     const response = await apiClient.get(`/api/stocks/${stockCode}/community-opinion`);
     return response.data;
   },
 
-  // 유저 의견 제출·변경: POST /api/stocks/{stockCode}/user-opinion (본문: { opinion: "BUY" | "SELL" })
+  // 새로 추가됨: 사용자가 제출한 의견 및 제출 시간 조회 (CheckOwnOpinionResponse)
+  getOwnOpinion: async (stockCode) => {
+    const response = await apiClient.get(`/api/stocks/${stockCode}/own-opinion`);
+    return response.data;
+  },
+
   postUserOpinion: async (stockCode, opinion) => {
     const response = await apiClient.post(`/api/stocks/${stockCode}/user-opinion`, {
       opinion,
@@ -99,7 +94,6 @@ export const opinionAPI = {
 
 // 4. Chart API (ChartController)
 export const chartAPI = {
-  // 일봉 차트 조회: GET /api/stocks/{stockCode}/daily-chart?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
   getDailyChart: async (stockCode, startDate, endDate) => {
     const response = await apiClient.get(`/api/stocks/${stockCode}/daily-chart`, {
       params: { startDate, endDate },
@@ -107,7 +101,6 @@ export const chartAPI = {
     return response.data;
   },
 
-  // 분봉 차트 조회: GET /api/stocks/{stockCode}/minute-chart?candleStart=YYYY-MM-DDTHH:mm:ss
   getMinuteChart: async (stockCode, candleStart) => {
     const params = {};
     if (candleStart) {
@@ -119,7 +112,6 @@ export const chartAPI = {
     return response.data;
   },
 
-  // 지표 차트 조회: GET /api/stocks/{stockCode}/indicator-chart?startDate=...&endDate=...&technicalIndicators=SMA20...
   getIndicatorChart: async (stockCode, startDate, endDate, technicalIndicators = []) => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
@@ -138,7 +130,6 @@ export const chartAPI = {
 
 // 5. AI Opinion API (AiOpinionController)
 export const aiOpinionAPI = {
-  // AI 예측 결과 조회: GET /api/stocks/{stockCode}/ai-opinion
   getAiOpinion: async (stockCode) => {
     const response = await apiClient.get(`/api/stocks/${stockCode}/ai-opinion`);
     return response.data;
@@ -147,7 +138,6 @@ export const aiOpinionAPI = {
 
 // 6. Stock News API (StockNewsController)
 export const newsAPI = {
-  // 특정 종목의 뉴스 및 감성 분석 결과 조회: GET /api/stocks/{stockCode}/news?limit=30
   getStockNews: async (stockCode, limit = 30) => {
     const response = await apiClient.get(`/api/stocks/${stockCode}/news`, {
       params: { limit },

@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowUpDown, BarChart2 } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, BarChart2 } from 'lucide-react';
 import { stockAPI, getErrorMessage } from '../services/api';
 
-// DB(daily_chart_data)에 차트 데이터가 풍부하게 들어있는 시연 핵심 종목 코드
 const DEMO_READY_CODES = new Set(['005930', '000660', '003490', '002720', '003280']);
+
+// 정렬 카테고리 정의 (양방향 지원 여부 및 기본 방향 설정)
+const SORT_CATEGORIES = [
+  { id: 'VOLUME', label: '거래량', asc: null, desc: 'VOLUME_DESC', defaultDir: 'DESC' },
+  { id: 'PRICE', label: '주가', asc: 'PRICE_ASC', desc: 'PRICE_DESC', defaultDir: 'DESC' },
+  { id: 'CHANGE_RATE', label: '변화율', asc: 'CHANGE_RATE_ASC', desc: 'CHANGE_RATE_DESC', defaultDir: 'DESC' },
+  { id: 'MARKET_CAP', label: '시가총액', asc: null, desc: 'MARKET_CAP_DESC', defaultDir: 'DESC' },
+  { id: 'NAME', label: '이름 (ㄱ-ㅎ)', asc: 'NAME_ASC', desc: null, defaultDir: 'ASC' },
+  { id: 'CODE', label: '종목코드', asc: 'CODE_ASC', desc: null, defaultDir: 'ASC' },
+  { id: 'SEARCH_PRIORITY', label: '검색정확도', asc: null, desc: null, defaultDir: 'NONE' },
+];
 
 function Home() {
   const navigate = useNavigate();
@@ -12,11 +22,45 @@ function Home() {
   const [searchInput, setSearchInput] = useState('');
   const [appliedKeyword, setAppliedKeyword] = useState(undefined);
   const [market, setMarket] = useState('ALL');
-  const [sort, setSort] = useState('VOLUME_DESC');
+
+  // 정렬 카테고리 및 방향(ASC / DESC) 상태
+  const [sortCategory, setSortCategory] = useState('VOLUME');
+  const [sortDir, setSortDir] = useState('DESC'); // 'ASC' | 'DESC'
 
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // 현재 선택된 카테고리와 방향(ASC/DESC)을 조합하여 백엔드 Enum 문자열 도출
+  const currentSortMeta = useMemo(
+    () => SORT_CATEGORIES.find((c) => c.id === sortCategory) || SORT_CATEGORIES[0],
+    [sortCategory]
+  );
+
+  const sortParam = useMemo(() => {
+    if (sortCategory === 'SEARCH_PRIORITY') return 'SEARCH_PRIORITY';
+    if (sortDir === 'ASC' && currentSortMeta.asc) return currentSortMeta.asc;
+    if (sortDir === 'DESC' && currentSortMeta.desc) return currentSortMeta.desc;
+    return currentSortMeta.desc || currentSortMeta.asc || 'VOLUME_DESC';
+  }, [sortCategory, sortDir, currentSortMeta]);
+
+  const canToggleDir = Boolean(currentSortMeta.asc && currentSortMeta.desc);
+
+  // 카테고리 변경 핸들러
+  const handleCategoryChange = (e) => {
+    const nextId = e.target.value;
+    const meta = SORT_CATEGORIES.find((c) => c.id === nextId);
+    setSortCategory(nextId);
+    if (meta && meta.defaultDir !== 'NONE') {
+      setSortDir(meta.defaultDir);
+    }
+  };
+
+  // 화살표 버튼 클릭 시 ASC <-> DESC 토글
+  const handleToggleDir = () => {
+    if (!canToggleDir) return;
+    setSortDir((prev) => (prev === 'ASC' ? 'DESC' : 'ASC'));
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -28,7 +72,7 @@ function Home() {
         const data = await stockAPI.getStocks({
           keyword: appliedKeyword,
           market,
-          sort,
+          sort: sortParam,
         });
         if (!ignore) {
           setStocks(Array.isArray(data) ? data : []);
@@ -49,17 +93,20 @@ function Home() {
     return () => {
       ignore = true;
     };
-  }, [appliedKeyword, market, sort]);
+  }, [appliedKeyword, market, sortParam]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchInput === '') {
       setAppliedKeyword(undefined);
-      if (sort === 'SEARCH_PRIORITY') setSort('VOLUME_DESC');
+      if (sortCategory === 'SEARCH_PRIORITY') {
+        setSortCategory('VOLUME');
+        setSortDir('DESC');
+      }
       return;
     }
     setAppliedKeyword(searchInput);
-    setSort('SEARCH_PRIORITY');
+    setSortCategory('SEARCH_PRIORITY');
   };
 
   const handleInputChange = (e) => {
@@ -67,7 +114,10 @@ function Home() {
     setSearchInput(val);
     if (val === '' && appliedKeyword !== undefined) {
       setAppliedKeyword(undefined);
-      if (sort === 'SEARCH_PRIORITY') setSort('VOLUME_DESC');
+      if (sortCategory === 'SEARCH_PRIORITY') {
+        setSortCategory('VOLUME');
+        setSortDir('DESC');
+      }
     }
   };
 
@@ -107,7 +157,8 @@ function Home() {
                 onClick={() => {
                   setSearchInput('');
                   setAppliedKeyword(undefined);
-                  setSort('VOLUME_DESC');
+                  setSortCategory('VOLUME');
+                  setSortDir('DESC');
                 }}
                 style={{ border: 'none', background: 'none', color: '#999', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
               >
@@ -148,21 +199,63 @@ function Home() {
 
         {/* 종목 리스트 카드 */}
         <div style={{ backgroundColor: '#FFF', borderRadius: '16px', padding: '25px', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#111' }}>
               {appliedKeyword ? `'${appliedKeyword}' 검색 결과` : '인기 종목'}
             </h2>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '6px 12px', backgroundColor: '#FAFAFA' }}>
-              <ArrowUpDown size={14} color="#555" />
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', fontWeight: 'bold', color: '#333', cursor: 'pointer' }}
-              >
-                <option value="VOLUME_DESC">거래량</option>
-                <option value="SEARCH_PRIORITY">검색 정확도</option>
-              </select>
+            {/* 정렬 컨트롤 영역: 기준 선택 드롭다운 + 오름차순/내림차순(↑/↓) 화살표 버튼 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '6px 12px', backgroundColor: '#FAFAFA' }}>
+                <select
+                  value={sortCategory}
+                  onChange={handleCategoryChange}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', fontWeight: 'bold', color: '#333', cursor: 'pointer' }}
+                >
+                  {SORT_CATEGORIES.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 검색정확도가 아닐 때 위/아래 화살표 버튼 표시 */}
+              {sortCategory !== 'SEARCH_PRIORITY' && (
+                <button
+                  type="button"
+                  onClick={handleToggleDir}
+                  disabled={!canToggleDir}
+                  title={
+                    canToggleDir
+                      ? '클릭하여 오름차순(ASC) / 내림차순(DESC) 전환'
+                      : `${currentSortMeta.label} 정렬은 ${sortDir === 'ASC' ? '오름차순' : '내림차순'} 고정입니다`
+                  }
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #E5E7EB',
+                    backgroundColor: canToggleDir ? '#FFF' : '#F3F4F6',
+                    color: canToggleDir ? '#111' : '#6B7280',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: canToggleDir ? 'pointer' : 'default',
+                  }}
+                >
+                  {sortDir === 'ASC' ? (
+                    <>
+                      <ArrowUp size={15} color="#E22926" /> 오름차순
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown size={15} color="#2679ED" /> 내림차순
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
