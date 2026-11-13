@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, TrendingUp, Newspaper, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, TrendingUp, Newspaper, ExternalLink, Clock } from 'lucide-react';
 import { stockAPI, opinionAPI, aiOpinionAPI, chartAPI, userAPI, newsAPI, getErrorMessage } from '../services/api';
 import StockChart from '../components/StockChart';
 
@@ -22,7 +22,6 @@ const DEMO_COMMUNITY_DEFAULTS = {
   '003280': { buy: 92, sell: 78 },
 };
 
-// 백엔드 뉴스 API 연결 전 또는 빈 데이터 시 화면 구성을 확인하기 위한 시연용 폴백 뉴스
 const getDemoNews = (stockName = '종목') => [
   {
     id: 1,
@@ -61,7 +60,6 @@ const getDemoNews = (stockName = '종목') => [
   },
 ];
 
-// 백엔드 응답 DTO 필드명이 다양할 경우를 모두 포괄하는 정규화 함수
 function normalizeNewsItem(item, index) {
   const rawSentiment = String(item.sentiment ?? item.sentimentResult ?? item.label ?? 'NEUTRAL').toUpperCase();
   let sentiment = 'NEUTRAL';
@@ -83,13 +81,41 @@ function normalizeNewsItem(item, index) {
   };
 }
 
+// CheckOwnOpinionResponse DTO의 다양한 필드명을 모두 흡수하는 정규화 헬퍼 함수
+function extractOwnOpinion(dto) {
+  if (!dto) return { opinion: null, submittedAt: null };
+  const opinion = dto.opinion ?? dto.myOpinion ?? dto.userOpinion ?? dto.investOpinion ?? null;
+  const rawTime =
+    dto.submittedAt ??
+    dto.updatedAt ??
+    dto.createdAt ??
+    dto.votedAt ??
+    dto.opinionTime ??
+    dto.registeredAt ??
+    dto.time ??
+    null;
+
+  let formattedTime = null;
+  if (rawTime) {
+    formattedTime = String(rawTime).replace('T', ' ').slice(0, 19);
+  }
+  return { opinion, submittedAt: formattedTime };
+}
+
+function getNowKSTString() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+}
+
 function StockDetail() {
   const { code } = useParams();
   const navigate = useNavigate();
 
-  // 1. 종목 상세 / 커뮤니티 / AI 의견 상태
+  // 1. 종목 상세 / 커뮤니티 / 내 의견(own-opinion) / AI 의견 상태
   const [stock, setStock] = useState(null);
   const [community, setCommunity] = useState(null);
+  const [ownOpinion, setOwnOpinion] = useState({ opinion: null, submittedAt: null });
   const [aiOpinion, setAiOpinion] = useState(null);
   const [loading, setLoading] = useState(true);
   // eslint-disable-next-line no-unused-vars
@@ -119,10 +145,10 @@ function StockDetail() {
   // 4. 뉴스 감성 분석 상태
   const [newsList, setNewsList] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [newsFilter, setNewsFilter] = useState('ALL'); // 'ALL' | 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE'
+  const [newsFilter, setNewsFilter] = useState('ALL');
   const [isDemoNews, setIsDemoNews] = useState(false);
 
-  // 초기 데이터 로드 (종목 상세, 커뮤니티 의견, AI 의견, 뉴스 감성 분석)
+  // 초기 데이터 로드 (종목 상세, 커뮤니티 의견, 내 의견(own-opinion), AI 의견, 뉴스 감성 분석)
   useEffect(() => {
     let ignore = false;
 
@@ -135,6 +161,7 @@ function StockDetail() {
         opinionAPI.getCommunityOpinion(code),
         aiOpinionAPI.getAiOpinion(code),
         newsAPI.getStockNews(code, 30),
+        opinionAPI.getOwnOpinion(code), // 추가된 own-opinion API 호출
       ]);
 
       if (ignore) return;
@@ -168,7 +195,6 @@ function StockDetail() {
       if (results[2].status === 'fulfilled') setAiOpinion(results[2].value);
       else nextErrors.ai = getErrorMessage(results[2].reason);
 
-      // 뉴스 응답 처리 (배열 형태 또는 { items/news/content: [...] } 형태 모두 대응)
       if (results[3].status === 'fulfilled') {
         const rawData = results[3].value;
         const rawArray = Array.isArray(rawData)
@@ -189,9 +215,15 @@ function StockDetail() {
           setIsDemoNews(true);
         }
       } else {
-        // 백엔드 API 확정 전이거나 에러 발생 시 시연용 뉴스 표시
         setNewsList(getDemoNews(loadedStockName));
         setIsDemoNews(true);
+      }
+
+      // 5번째: 사용자가 제출한 의견 및 제출 시각(own-opinion) 반영
+      if (results[4].status === 'fulfilled' && results[4].value) {
+        setOwnOpinion(extractOwnOpinion(results[4].value));
+      } else {
+        setOwnOpinion({ opinion: null, submittedAt: null });
       }
 
       setErrors(nextErrors);
@@ -280,7 +312,7 @@ function StockDetail() {
     };
   }, [stock, dailyCandlesCache, candles]);
 
-  // 뉴스 감성 집계 및 필터링
+  // 뉴스 감성 집계
   const newsStats = useMemo(() => {
     const counts = { POSITIVE: 0, NEUTRAL: 0, NEGATIVE: 0 };
     newsList.forEach((n) => {
@@ -292,7 +324,10 @@ function StockDetail() {
       total,
       posPct: total > 0 ? Math.round((counts.POSITIVE / total) * 100) : 0,
       neuPct: total > 0 ? Math.round((counts.NEUTRAL / total) * 100) : 0,
-      negPct: total > 0 ? Math.max(0, 100 - Math.round((counts.POSITIVE / total) * 100) - Math.round((counts.NEUTRAL / total) * 100)) : 0,
+      negPct:
+        total > 0
+          ? Math.max(0, 100 - Math.round((counts.POSITIVE / total) * 100) - Math.round((counts.NEUTRAL / total) * 100))
+          : 0,
     };
   }, [newsList]);
 
@@ -307,6 +342,7 @@ function StockDetail() {
     );
   };
 
+  // 사용자 ID 등록 및 내 의견(own-opinion) 갱신
   const handleRegisterUser = async (e) => {
     e.preventDefault();
     setRegistrationMessage('');
@@ -325,6 +361,14 @@ function StockDetail() {
       setRegisteredUser(trimmed);
       setRegistrationMessage(`'${trimmed}' 등록 및 세션 연결이 완료되었습니다.`);
       setVoteError('');
+
+      // 등록 직후 내 의견 조회
+      try {
+        const ownRes = await opinionAPI.getOwnOpinion(code);
+        setOwnOpinion(extractOwnOpinion(ownRes));
+      } catch {
+        // 아직 투표 전이면 무시
+      }
     } catch (err) {
       if (err.response?.status === 409) {
         setRegistrationError(`'${trimmed}'은(는) 이미 존재하는 ID입니다. 다른 ID를 입력해주세요.`);
@@ -336,6 +380,7 @@ function StockDetail() {
     }
   };
 
+  // 매수/매도 투표 제출 후 own-opinion 재조회하여 제출 시간 표시
   const handleVote = async (opinionType) => {
     setVoteError('');
 
@@ -344,6 +389,21 @@ function StockDetail() {
       const updatedView = await opinionAPI.postUserOpinion(code, opinionType);
       setCommunity(updatedView);
       setErrors((prev) => ({ ...prev, community: undefined }));
+
+      // 투표 성공 후 GET /api/stocks/{stockCode}/own-opinion 호출하여 제출 시간 갱신
+      try {
+        const ownRes = await opinionAPI.getOwnOpinion(code);
+        const parsed = extractOwnOpinion(ownRes);
+        setOwnOpinion({
+          opinion: parsed.opinion || opinionType,
+          submittedAt: parsed.submittedAt || getNowKSTString(),
+        });
+      } catch {
+        setOwnOpinion({
+          opinion: opinionType,
+          submittedAt: getNowKSTString(),
+        });
+      }
     } catch (err) {
       if (err.response?.status === 401 || !registeredUser) {
         setVoteError('먼저 위 입력창에서 새 사용자 ID를 등록해 세션을 활성화해주세요.');
@@ -369,6 +429,10 @@ function StockDetail() {
             voted: true,
             myOpinion: opinionType,
           };
+        });
+        setOwnOpinion({
+          opinion: opinionType,
+          submittedAt: getNowKSTString(),
         });
       } else {
         setVoteError(`투표 실패: ${getErrorMessage(err)}`);
@@ -403,6 +467,10 @@ function StockDetail() {
     boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
     marginBottom: '20px',
   };
+
+  // 현재 표시할 내 의견 (own-opinion 응답 우선, 없으면 community.myOpinion 사용)
+  const currentMyOpinion = ownOpinion.opinion || (community?.voted ? community?.myOpinion : null);
+  const currentSubmittedAt = ownOpinion.submittedAt;
 
   const buyCount = community?.buy ?? 0;
   const sellCount = community?.sell ?? 0;
@@ -616,7 +684,7 @@ function StockDetail() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#6B7280' }}>기준 시각: 2026-10-23 09:00~15:29</span>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>장중 시간 단위 (09:00 ~ 15:29)</span>
                   </div>
                 )}
               </div>
@@ -662,7 +730,7 @@ function StockDetail() {
               )}
             </div>
 
-            {/* 새로 추가된 영역: 실시간 뉴스 감성 분석 카드 */}
+            {/* 실시간 뉴스 감성 분석 카드 */}
             <div style={cardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -678,7 +746,6 @@ function StockDetail() {
                   )}
                 </div>
 
-                {/* 감성별 필터 버튼 */}
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {[
                     { id: 'ALL', label: `전체 (${newsStats.total})` },
@@ -707,7 +774,6 @@ function StockDetail() {
                 </div>
               </div>
 
-              {/* 긍정 / 중립 / 부정 3색 비율 요약 바 */}
               {newsStats.total > 0 && (
                 <div style={{ marginBottom: '18px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px', fontWeight: 'bold' }}>
@@ -723,7 +789,6 @@ function StockDetail() {
                 </div>
               )}
 
-              {/* 뉴스 기사 리스트 */}
               {newsLoading ? (
                 <div style={{ padding: '30px 0', textAlign: 'center', color: '#6B7280', fontSize: '14px' }}>
                   뉴스 감성 분석 결과를 불러오는 중입니다...
@@ -759,7 +824,6 @@ function StockDetail() {
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FAFAFA')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                          {/* 감성 결과 배지 */}
                           <span
                             style={{
                               padding: '4px 8px',
@@ -774,8 +838,6 @@ function StockDetail() {
                           >
                             {badge.label}
                           </span>
-
-                          {/* 뉴스 제목 */}
                           <span
                             style={{
                               fontSize: '14px',
@@ -790,7 +852,6 @@ function StockDetail() {
                           </span>
                         </div>
 
-                        {/* 기사 시각 및 외부 링크 아이콘 */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                           <span style={{ fontSize: '12px', color: '#6B7280' }}>{item.publishedAt}</span>
                           <ExternalLink size={14} color="#9CA3AF" />
@@ -805,7 +866,7 @@ function StockDetail() {
 
           {/* 우측 영역: 나의 의견 / AI 의견 / 커뮤니티 의견 */}
           <div>
-            {/* 1. 나의 의견 카드 */}
+            {/* 1. 나의 의견 카드 (own-opinion 및 제출 시간 표시) */}
             <div style={cardStyle}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', textAlign: 'center', color: '#374151' }}>나의 의견</h3>
 
@@ -858,15 +919,53 @@ function StockDetail() {
                 )}
               </form>
 
-              <div style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', marginBottom: '10px' }}>
-                내 의견:{' '}
-                <strong style={{ color: '#111' }}>
-                  {community?.voted && community?.myOpinion
-                    ? community.myOpinion === 'BUY'
-                      ? '매수'
-                      : '매도'
-                    : '선택하지 않음'}
-                </strong>
+              {/* 제출한 의견 및 제출 시각 표시 영역 */}
+              <div
+                style={{
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  marginBottom: '12px',
+                  textAlign: 'center',
+                  border: '1px solid #F0F0F0',
+                }}
+              >
+                <div style={{ fontSize: '13px', color: '#6B7280' }}>
+                  제출한 의견:{' '}
+                  <strong
+                    style={{
+                      color:
+                        currentMyOpinion === 'BUY'
+                          ? '#E22926'
+                          : currentMyOpinion === 'SELL'
+                          ? '#2679ED'
+                          : '#111',
+                    }}
+                  >
+                    {currentMyOpinion
+                      ? currentMyOpinion === 'BUY'
+                        ? '매수'
+                        : currentMyOpinion === 'SELL'
+                        ? '매도'
+                        : currentMyOpinion
+                      : '선택하지 않음'}
+                  </strong>
+                </div>
+                {currentSubmittedAt && (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#888',
+                      marginTop: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Clock size={11} /> 제출 시각: {currentSubmittedAt}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -877,8 +976,8 @@ function StockDetail() {
                   style={{
                     flex: 1,
                     padding: '10px',
-                    backgroundColor: community?.myOpinion === 'BUY' ? '#FEF2F2' : '#FFF',
-                    border: community?.myOpinion === 'BUY' ? '2px solid #E22926' : '1px solid #E5E7EB',
+                    backgroundColor: currentMyOpinion === 'BUY' ? '#FEF2F2' : '#FFF',
+                    border: currentMyOpinion === 'BUY' ? '2px solid #E22926' : '1px solid #E5E7EB',
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -898,8 +997,8 @@ function StockDetail() {
                   style={{
                     flex: 1,
                     padding: '10px',
-                    backgroundColor: community?.myOpinion === 'SELL' ? '#EFF6FF' : '#FFF',
-                    border: community?.myOpinion === 'SELL' ? '2px solid #2679ED' : '1px solid #E5E7EB',
+                    backgroundColor: currentMyOpinion === 'SELL' ? '#EFF6FF' : '#FFF',
+                    border: currentMyOpinion === 'SELL' ? '2px solid #2679ED' : '1px solid #E5E7EB',
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -920,7 +1019,7 @@ function StockDetail() {
               )}
             </div>
 
-            {/* 2. AI 의견 카드 */}
+            {/* 2. AI 의견 카드 (aiOpinion 및 investOpinion 필드 모두 호환) */}
             <div style={cardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ margin: 0, fontSize: '17px', color: '#374151' }}>AI 의견</h3>
@@ -941,33 +1040,32 @@ function StockDetail() {
                 </span>
               </div>
 
-              {!aiOpinion || aiOpinion.aiOpinion === null ? (
-                <div style={{ fontSize: '14px', color: '#6B7280', textAlign: 'center', padding: '12px 0' }}>
-                  아직 저장된 AI 의견이 없습니다.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    padding: '14px',
-                    borderRadius: '10px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    backgroundColor:
-                      aiOpinion.aiOpinion === 'BUY' || aiOpinion.aiOpinion === 'UP' || aiOpinion.aiOpinion === '상승'
-                        ? '#FEF2F2'
-                        : '#EFF6FF',
-                    color:
-                      aiOpinion.aiOpinion === 'BUY' || aiOpinion.aiOpinion === 'UP' || aiOpinion.aiOpinion === '상승'
-                        ? '#E22926'
-                        : '#2679ED',
-                  }}
-                >
-                  {aiOpinion.aiOpinion === 'BUY' || aiOpinion.aiOpinion === 'UP' || aiOpinion.aiOpinion === '상승'
-                    ? '📈 상승 (매수 추천)'
-                    : '📉 하락 (매도 추천)'}
-                </div>
-              )}
+              {(() => {
+                const opinionVal = aiOpinion?.aiOpinion ?? aiOpinion?.investOpinion ?? null;
+                if (!opinionVal) {
+                  return (
+                    <div style={{ fontSize: '14px', color: '#6B7280', textAlign: 'center', padding: '12px 0' }}>
+                      아직 저장된 AI 의견이 없습니다.
+                    </div>
+                  );
+                }
+                const isUp = opinionVal === 'BUY' || opinionVal === 'UP' || opinionVal === '상승';
+                return (
+                  <div
+                    style={{
+                      padding: '14px',
+                      borderRadius: '10px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '16px',
+                      backgroundColor: isUp ? '#FEF2F2' : '#EFF6FF',
+                      color: isUp ? '#E22926' : '#2679ED',
+                    }}
+                  >
+                    {isUp ? '📈 상승 (매수 추천)' : '📉 하락 (매도 추천)'}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 3. 커뮤니티 의견 카드 */}

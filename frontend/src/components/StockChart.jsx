@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import ReactApexChart from 'react-apexcharts';
 
-// --- 기술적 지표 수학 계산 헬퍼 함수들 ---
+// 기술적 지표 수학 계산 헬퍼 함수들
 function calcSMA(data, period) {
   return data.map((item, idx) => {
     if (idx < period - 1) return { x: item.x, y: null };
@@ -78,8 +78,39 @@ function calcRSI(data, period = 14) {
   return result;
 }
 
+// 타임스탬프를 한국 시간(로컬) 기준 포맷으로 변환하는 함수
+function formatAxisTime(val, isMinute) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return '';
+  if (isMinute) {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${month}/${day}`;
+}
+
+function formatTooltipTime(val, isMinute) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return '';
+  const yyyy = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  if (isMinute) {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${month}-${day} ${hh}:${mm}`;
+  }
+  return `${yyyy}-${month}-${day}`;
+}
+
 function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = [] }) {
-  // 백엔드 응답(UpdateDailyChartResponse 또는 UpdateMinuteChartResponse) 정규화
+  const isMinute = chartMode === 'MINUTE';
+
   const normalizedData = useMemo(() => {
     return candles.map((item) => {
       const timeStr = item.tradeDate || item.candleStart;
@@ -94,7 +125,6 @@ function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = []
     });
   }, [candles]);
 
-  // 메인 캔들차트 + 오버레이 지표 시리즈 생성
   const mainSeries = useMemo(() => {
     const series = [
       {
@@ -130,38 +160,50 @@ function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = []
     return series;
   }, [normalizedData, chartMode, selectedIndicators]);
 
-  const mainOptions = {
-    chart: {
-      type: 'candlestick',
-      height: 350,
-      toolbar: { show: true },
-      animations: { enabled: false },
-    },
-    stroke: {
-      width: mainSeries.map((s) => (s.type === 'candlestick' ? 1 : 2)),
-      curve: 'smooth',
-    },
-    xaxis: {
-      type: 'datetime',
-    },
-    yaxis: {
-      tooltip: { enabled: true },
-      labels: {
-        formatter: (val) => (val ? `${Math.round(val).toLocaleString()}원` : ''),
+  const mainOptions = useMemo(
+    () => ({
+      chart: {
+        type: 'candlestick',
+        height: 350,
+        toolbar: { show: true },
+        animations: { enabled: false },
       },
-    },
-    plotOptions: {
-      candlestick: {
-        colors: {
-          upward: '#E22926', // 상승 빨강
-          downward: '#2679ED', // 하락 파랑
+      stroke: {
+        width: mainSeries.map((s) => (s.type === 'candlestick' ? 1 : 2)),
+        curve: 'smooth',
+      },
+      xaxis: {
+        type: 'datetime',
+        tickAmount: isMinute ? 8 : undefined,
+        labels: {
+          datetimeUTC: false, // 한국 로컬 시간 기준 표시
+          formatter: (val) => formatAxisTime(val, isMinute),
         },
-        wick: { useFillColor: true },
       },
-    },
-  };
+      tooltip: {
+        x: {
+          formatter: (val) => formatTooltipTime(val, isMinute),
+        },
+      },
+      yaxis: {
+        tooltip: { enabled: true },
+        labels: {
+          formatter: (val) => (val ? `${Math.round(val).toLocaleString()}원` : ''),
+        },
+      },
+      plotOptions: {
+        candlestick: {
+          colors: {
+            upward: '#E22926',
+            downward: '#2679ED',
+          },
+          wick: { useFillColor: true },
+        },
+      },
+    }),
+    [mainSeries, isMinute]
+  );
 
-  // 하단 보조 차트: 거래량 (VOLUME) & RSI
   const showVolume = chartMode === 'DAILY' && selectedIndicators.includes('VOLUME');
   const showRSI = chartMode === 'DAILY' && selectedIndicators.includes('RSI');
 
@@ -190,13 +232,19 @@ function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = []
       {/* 1. 메인 가격 캔들차트 */}
       <ReactApexChart options={mainOptions} series={mainSeries} type="line" height={350} />
 
-      {/* 2. 거래량 바 차트 (체크 시 하단에 표시) */}
+      {/* 2. 거래량 바 차트 */}
       {showVolume && (
         <div style={{ marginTop: '10px' }}>
           <ReactApexChart
             options={{
               chart: { type: 'bar', height: 130, toolbar: { show: false }, animations: { enabled: false } },
-              xaxis: { type: 'datetime' },
+              xaxis: {
+                type: 'datetime',
+                labels: {
+                  datetimeUTC: false,
+                  formatter: (val) => formatAxisTime(val, false),
+                },
+              },
               yaxis: {
                 labels: { formatter: (val) => (val ? `${Math.round(val / 10000).toLocaleString()}만` : '0') },
               },
@@ -211,14 +259,20 @@ function StockChart({ candles = [], chartMode = 'DAILY', selectedIndicators = []
         </div>
       )}
 
-      {/* 3. RSI 선 차트 (체크 시 하단에 표시) */}
+      {/* 3. RSI 선 차트 */}
       {showRSI && (
         <div style={{ marginTop: '10px' }}>
           <ReactApexChart
             options={{
               chart: { type: 'line', height: 130, toolbar: { show: false }, animations: { enabled: false } },
               stroke: { width: 2, curve: 'smooth' },
-              xaxis: { type: 'datetime' },
+              xaxis: {
+                type: 'datetime',
+                labels: {
+                  datetimeUTC: false,
+                  formatter: (val) => formatAxisTime(val, false),
+                },
+              },
               yaxis: { min: 0, max: 100, tickAmount: 2 },
               colors: ['#8B5CF6'],
               title: { text: 'RSI (14)', style: { fontSize: '12px', color: '#6B7280' } },
