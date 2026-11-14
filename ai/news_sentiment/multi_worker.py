@@ -1,4 +1,4 @@
-"""200 target news worker. Secrets in environment; isolated development DB only."""
+"""Shared stock universe -> news inference -> configured StockPilot DB."""
 import argparse
 import json
 import math
@@ -10,7 +10,7 @@ from email.utils import parsedate_to_datetime
 from news import fetch, clean, canonical_url, digest
 from database import connect
 from live_worker import Store as LockStore, write_json, error_summary, write_report
-from market_universe import daily_universe
+from shared_universe import DEFAULT_UNIVERSE, load_universe
 
 class BudgetExceeded(RuntimeError): pass
 
@@ -87,6 +87,17 @@ def run_cycle(directory,predictor,store,stocks,budget,fetcher=fetch):
     queue=json.loads(queue_path.read_text(encoding='utf-8')) if queue_path.exists() else []
     errors=[];invalid=0;capped=[];fetched=0
     store.acquire()
+    # Keep excluded queued rows on disk, but never predict/store them for this universe.
+    excluded_path=directory/'pending-excluded.json'
+    excluded=json.loads(excluded_path.read_text(encoding='utf-8')) if excluded_path.exists() else []
+    all_queued=combine(queue,excluded)
+    active_codes={s['stock_code'] for s in stocks}
+    queue=[r for r in all_queued if r['stock_code'] in active_codes]
+    excluded=[r for r in all_queued if r['stock_code'] not in active_codes]
+    # Persist active rows before replacing the excluded file, to preserve reactivated rows on interruption.
+    write_json(queue_path,all_queued)
+    write_json(excluded_path,excluded)
+    write_json(queue_path,queue)
     print(f'뉴스 수집 시작: {len(stocks)}종목',flush=True)
     # Resume after the last requested stock if a previous run stopped mid-sweep.
     cursor_path=directory/'cursor.json'
@@ -127,12 +138,18 @@ def run_cycle(directory,predictor,store,stocks,budget,fetcher=fetch):
     write_json(queue_path,[])
     return dict(state='partial' if errors else 'ok',checked_at_utc=datetime.now(timezone.utc).isoformat(),
                 stocks=len(stocks),fetched_stocks=fetched,predicted_and_saved=len(saved),invalid=invalid,
-                capped_stocks=capped,errors=errors,model_version=predictor.version,database=os.getenv('STOCKPILOT_DB_NAME','stockpilot_db'))
+                capped_stocks=capped,excluded_pending=len(excluded),errors=errors,model_version=predictor.version,database=os.getenv('STOCKPILOT_DB_NAME','stockpilot_db'))
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--model',required=True)
+    p=argparse.ArgumentParser();p.add_argument('--model',default='models/final-stockpilot-news-v1')
+    p.add_argument('--universe',type=Path,default=DEFAULT_UNIVERSE)
+    p.add_argument('--check-universe',action='store_true')
     p.add_argument('--interval-minutes',type=int,default=15);p.add_argument('--pages',type=int,default=1)
     p.add_argument('--once',action='store_true');a=p.parse_args()
+    if a.check_universe:
+        universe=load_universe(a.universe)
+        print(json.dumps(dict(stocks=len(universe['stocks']),source_file=universe['source_file'],source_snapshot=universe['source_snapshot'],source_sha256=universe['source_sha256'],db_accessed=False,api_called=False),ensure_ascii=False))
+        return
     if not 15<=a.interval_minutes<=1440 or a.pages!=1:p.error('200 stocks require interval >=15 minutes and pages=1')
     if not all(os.getenv(k) for k in ('NAVER_CLIENT_ID','NAVER_CLIENT_SECRET')):p.error('NAVER credentials required in environment')
     print('최종 모델을 불러오는 중입니다.',flush=True)
@@ -146,9 +163,11 @@ def main():
         while True:
             start=time.monotonic()
             try:
-                print('시가총액 상위 200종목 목록 확인 중입니다.',flush=True)
-                universe=daily_universe(directory/'universe.json')
+                print('주식 수집기와 공통으로 사용하는 200종목 목록 확인 중입니다.',flush=True)
+                universe=load_universe(a.universe)
+                write_json(directory/'universe.json',universe)
                 status=run_cycle(directory,predictor,store,universe['stocks'],budget)
+                status.update(universe_source=universe['source_file'],universe_sha256=universe['source_sha256'],universe_snapshot=universe['source_snapshot'])
             except Exception as exc:
                 status=dict(state='error',checked_at_utc=datetime.now(timezone.utc).isoformat(),error=error_summary(exc))
             status['interval_minutes']=a.interval_minutes
