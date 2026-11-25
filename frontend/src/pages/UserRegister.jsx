@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { userAPI, getErrorMessage } from '../services/api';
 
 export default function UserRegister() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const [userId, setUserId] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -43,11 +44,8 @@ export default function UserRegister() {
         } catch (error) {
             if (error.response?.status === 401) {
                 sessionStorage.removeItem('stockpilot_user');
+                sessionStorage.removeItem('stockpilot_display_name');
                 setError('사용자 등록 후 세션을 확인하지 못했습니다. 브라우저의 쿠키 설정과 서버 상태를 확인해주세요.');
-            } else if (error.response?.status === 409) {
-                setError(
-                    '이미 등록된 ID입니다. 현재는 신규 ID 등록만 지원합니다.'
-                );
             } else {
                 setError(getErrorMessage(error));
             }
@@ -68,18 +66,24 @@ export default function UserRegister() {
                     id="userId"
                     value={userId}
                     onChange={(event) => setUserId(event.target.value)}
-                    placeholder="새 사용자 ID 입력"
+                    placeholder="사용자명 입력"
                     maxLength={50}
                     disabled={submitting}
                     required
                 />
 
                 <button type="submit" disabled={submitting}>
-                    {submitting ? '등록 중...' : '등록'}
+                    {submitting ? '입장 중...' : '입장'}
                 </button>
 
                 {error && <p role="alert">{error}</p>}
             </form>
+            <button type="button" disabled={submitting} onClick={userAPI.loginWithGoogle}>
+                Google로 로그인
+            </button>
+            {searchParams.get('error') === 'google' && (
+                <p role="alert">Google 로그인에 실패했습니다. 다시 시도해주세요.</p>
+            )}
         </main>
     );
 }

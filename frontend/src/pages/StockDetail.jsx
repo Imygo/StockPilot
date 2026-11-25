@@ -124,6 +124,8 @@ function StockDetail() {
   // 2. 사용자 등록 및 투표 상태
   const [userId, setUserId] = useState('');
   const [registeredUser, setRegisteredUser] = useState(() => sessionStorage.getItem('stockpilot_user') || '');
+  const [displayName, setDisplayName] = useState(() =>
+    sessionStorage.getItem('stockpilot_display_name') || sessionStorage.getItem('stockpilot_user') || '');
   const [registering, setRegistering] = useState(false);
   const [registrationMessage, setRegistrationMessage] = useState('');
   const [registrationError, setRegistrationError] = useState('');
@@ -357,9 +359,13 @@ function StockDetail() {
     try {
       setRegistering(true);
       await userAPI.registerUser(trimmed);
-      sessionStorage.setItem('stockpilot_user', trimmed);
-      setRegisteredUser(trimmed);
-      setRegistrationMessage(`'${trimmed}' 등록 및 세션 연결이 완료되었습니다.`);
+      const currentUser = await userAPI.getCurrentUser();
+      const name = currentUser.displayName ?? currentUser.userId;
+      sessionStorage.setItem('stockpilot_user', currentUser.userId);
+      sessionStorage.setItem('stockpilot_display_name', name);
+      setRegisteredUser(currentUser.userId);
+      setDisplayName(name);
+      setRegistrationMessage(`'${name}' 사용자로 연결되었습니다.`);
       setVoteError('');
 
       // 등록 직후 내 의견 조회
@@ -872,7 +878,7 @@ function StockDetail() {
 
               <form onSubmit={handleRegisterUser} style={{ marginBottom: '16px' }}>
                 <div style={{ fontSize: '13px', color: '#6B7280', textAlign: 'center', marginBottom: '8px' }}>
-                  사용자 ID {registeredUser && <span style={{ color: '#10B981', fontWeight: 'bold' }}>(현재: {registeredUser})</span>}
+                  사용자 ID {registeredUser && <span style={{ color: '#10B981', fontWeight: 'bold' }}>(현재: {displayName})</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input

@@ -9,6 +9,19 @@ const apiClient = axios.create({
   },
 });
 
+// 쿠키 세션을 사용하는 모든 쓰기 요청에 현재 세션의 CSRF 토큰을 전달합니다.
+apiClient.interceptors.request.use(async config => {
+  if (!['get', 'head', 'options'].includes((config.method ?? 'get').toLowerCase())) {
+    const { data } = await axios.get('/api/users/csrf', {
+      baseURL: apiClient.defaults.baseURL,
+      withCredentials: true,
+      timeout: 10000,
+    });
+    config.headers.set(data.headerName, data.token);
+  }
+  return config;
+});
+
 export const getErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;
@@ -24,6 +37,17 @@ export const getErrorMessage = (error) => {
 
 // 1. User API (UserController)
 export const userAPI = {
+  loginWithGoogle: () => {
+    const base = (import.meta.env.VITE_AUTH_BASE_URL || '').replace(/\/+$/, '');
+    window.location.assign(`${base}/oauth2/authorization/google`);
+  },
+
+  logout: async () => {
+    await apiClient.post('/api/users/logout');
+    sessionStorage.removeItem('stockpilot_user');
+    sessionStorage.removeItem('stockpilot_display_name');
+  },
+
   registerUser: async (userId) => {
     const trimmed = userId?.trim();
     if (!trimmed) {

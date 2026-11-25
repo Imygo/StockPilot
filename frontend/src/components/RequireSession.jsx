@@ -23,6 +23,7 @@ export default function RequireSession() {
 
                 // 서버가 확인한 ID로 기존 상세 화면의 표시값 동기화
                 sessionStorage.setItem('stockpilot_user', user.userId);
+                sessionStorage.setItem('stockpilot_display_name', user.displayName ?? user.userId);
 
                 setResult({
                     checkedPath,
@@ -34,6 +35,7 @@ export default function RequireSession() {
 
                 if (error.response?.status === 401) {
                     sessionStorage.removeItem('stockpilot_user');
+                    sessionStorage.removeItem('stockpilot_display_name');
 
                     setResult({
                         checkedPath,

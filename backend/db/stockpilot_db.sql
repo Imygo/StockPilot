@@ -10,8 +10,14 @@ USE stockpilot_db;
 -- 사용자 정보를 담는 테이블
 CREATE TABLE IF NOT EXISTS users(
     user_id VARCHAR(50) NOT NULL PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    auth_provider VARCHAR(10) NOT NULL DEFAULT 'LOCAL',
+    google_sub VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    display_name VARCHAR(255) NULL,
+    UNIQUE KEY uq_users_google_sub (google_sub)
     );
+
+-- 기존 users 테이블에는 migrations/20261125_google_login.sql을 1회 적용합니다.
 
 -- 주식 정보를 담는 테이블
 CREATE TABLE IF NOT EXISTS stock(

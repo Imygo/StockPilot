@@ -3,11 +3,11 @@ package com.stockpilot.stockpilot_api.service;
 import com.stockpilot.stockpilot_api.domain.Users;
 import com.stockpilot.stockpilot_api.dto.FindUserRequest;
 import com.stockpilot.stockpilot_api.dto.UserRegisterRequest;
-import com.stockpilot.stockpilot_api.global.exception.DuplicateUserIdException;
 import com.stockpilot.stockpilot_api.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +36,12 @@ public class UserService {
                         new IllegalStateException("사용자 정보를 확인하지 못했습니다.")
                 );
 
+        if (!"LOCAL".equals(user.auth_provider)) {
+            throw new IllegalArgumentException(
+                    "이 계정은 Google 로그인으로 입장해주세요."
+            );
+        }
+
         return user.user_id;
     }
 
@@ -46,6 +52,32 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean existingUser(FindUserRequest request) {
         return usersRepository.existsById(request.getUserId());
+    }
+
+    @Transactional
+    public Users findOrCreateGoogleUser(String sub, String name) {
+        if (sub == null || sub.isBlank() || sub.length() > 255) {
+            throw new IllegalArgumentException("Google 계정 식별자가 올바르지 않습니다.");
+        }
+
+        String displayName = name == null || name.isBlank()
+                ? "Google 사용자"
+                : name.strip();
+
+        if (displayName.length() > 255) {
+            displayName = displayName.substring(0, 255);
+        }
+
+        usersRepository.upsertGoogleUser(
+                "g_" + UUID.randomUUID(),
+                sub,
+                displayName
+        );
+
+        return usersRepository.findByGoogleSub(sub)
+                .orElseThrow(() ->
+                        new IllegalStateException("Google 사용자를 확인하지 못했습니다.")
+                );
     }
 
 }
