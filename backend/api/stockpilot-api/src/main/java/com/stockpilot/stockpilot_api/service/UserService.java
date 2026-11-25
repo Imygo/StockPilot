@@ -15,22 +15,28 @@ public class UserService {
     private final UsersRepository usersRepository;
 
     @Transactional
-    public void register(UserRegisterRequest request){
-        String userId = request.getUserId();
+    public String register(UserRegisterRequest request) {
+        String userId = request.getUserId() == null
+                ? ""
+                : request.getUserId().strip();
 
-        if (userId == null || userId.isBlank()){
+        if (userId.isBlank()) {
             throw new IllegalArgumentException("사용자 ID는 필수입니다.");
         }
 
-        if(usersRepository.existsById(userId)){
-            throw new DuplicateUserIdException(userId);
+        if (userId.length() > 50) {
+            throw new IllegalArgumentException("사용자 ID는 50자 이하여야 합니다.");
         }
 
-        Users user = new Users();
+        usersRepository.insertIfMissing(userId);
 
-        user.user_id = userId;
+        // DB에 저장된 ID를 기준으로 세션을 구성합니다.
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() ->
+                        new IllegalStateException("사용자 정보를 확인하지 못했습니다.")
+                );
 
-        usersRepository.save(user);
+        return user.user_id;
     }
 
     // 유저가 존재하는지만 확인하는 함수

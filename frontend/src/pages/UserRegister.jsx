@@ -34,6 +34,11 @@ export default function UserRegister() {
             }
 
             sessionStorage.setItem('stockpilot_user', currentUser.userId);
+            sessionStorage.setItem(
+                'stockpilot_display_name',
+                currentUser.displayName ?? currentUser.userId
+            );
+
             navigate('/', { replace: true });
         } catch (error) {
             if (error.response?.status === 401) {
@@ -53,8 +58,8 @@ export default function UserRegister() {
 
     return (
         <main>
-            <h1>사용자 ID 등록</h1>
-            <p>사용자 ID를 등록하면 주식 목록으로 이동합니다.</p>
+            <h1>사용자 입장</h1>
+            <p>기존 사용자명으로 입장하거나 새 사용자명을 등록할 수 있습니다.</p>
 
             <form onSubmit={handleSubmit}>
                 <label htmlFor="userId">사용자 ID</label>

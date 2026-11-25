@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -25,14 +27,28 @@ public class UserController {
     //    OpinionController에서 사용함
     //    -> required = false이므로 세션에 값이 없다면 userId = null
     @PostMapping
-    public ResponseEntity<Void> registerUser(
+    public ResponseEntity<Map<String, String>> registerUser(
             @Valid @RequestBody UserRegisterRequest request,
-            HttpSession session){
-        userService.register(request);
+            HttpServletRequest httpRequest
+    ) {
+        String userId = userService.register(request);
 
-        session.setAttribute("userId", request.getUserId());
+        // 이전 사용자의 세션 정보가 남지 않도록 새 세션을 만듭니다.
+        HttpSession oldSession = httpRequest.getSession(false);
+        if (oldSession != null) {
+            oldSession.invalidate();
+        }
 
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        HttpSession session = httpRequest.getSession(true);
+        session.setAttribute("userId", userId);
+        session.setAttribute("displayName", userId);
+        session.setAttribute("authProvider", "LOCAL");
+
+        return ResponseEntity.ok(Map.of(
+                "userId", userId,
+                "displayName", userId,
+                "authProvider", "LOCAL"
+        ));
     }
 
     // 사용자가 존재하는지 확인하는 것.
@@ -45,16 +61,30 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<java.util.Map<String, String>> currentUser(
-            @SessionAttribute(name = "userId", required = false)
-            String userId
-    ){
-        if (userId == null) {
+    public ResponseEntity<Map<String, String>> currentUser(
+            HttpServletRequest request
+    ) {
+        HttpSession session = request.getSession(false);
+
+        if (session == null ||
+                !(session.getAttribute("userId") instanceof String userId)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        return ResponseEntity.ok(
-                java.util.Map.of("userId", userId)
-        );
+        String displayName = session.getAttribute("displayName") instanceof String name
+                ? name
+                : userId;
+
+        String authProvider = session.getAttribute("authProvider") instanceof String provider
+                ? provider
+                : "LOCAL";
+
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-store")
+                .body(Map.of(
+                        "userId", userId,
+                        "displayName", displayName,
+                        "authProvider", authProvider
+                ));
     }
 }
